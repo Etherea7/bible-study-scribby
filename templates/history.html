@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Study History - Bible Study Generator{% endblock %}
+
+{% block content %}
+<div class="history-page">
+    <div class="history-header">
+        <h2>Study History</h2>
+        <a href="/" class="back-link">← Back to Home</a>
+    </div>
+
+    {% if history %}
+    <div class="history-table-container">
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>Reference</th>
+                    <th>Date Generated</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for study in history %}
+                <tr>
+                    <td class="reference-cell">{{ study.reference }}</td>
+                    <td class="date-cell">{{ study.created_at }}</td>
+                    <td class="actions-cell">
+                        <a href="/?book={{ study.book }}&chapter={{ study.chapter }}&start={{ study.start_verse or '' }}&end={{ study.end_verse or '' }}" class="regenerate-link">
+                            View Again
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="no-history">
+        <p>No study history yet. Generate your first study to get started!</p>
+        <a href="/" class="btn-primary">Generate Study</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+
+{% block title %}{{ reference }} - Bible Study Generator{% endblock %}
+
+{% block content %}
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay hidden">
+    <div class="spinner"></div>
+    <p>Generating your Bible study...</p>
+</div>
+
+<!-- Navigation Header -->
+<div class="nav-header">
+    <a href="/history" class="history-link">📖 View History</a>
+</div>
+
+<!-- Passage Selection Form -->
+<section class="selection-form">
+    <form id="study-form">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="book">Book:</label>
+                <select id="book" name="book">
+                    {% for book, chapters in bible_books %}
+                    <option value="{{ book }}" {% if book == selected_book %}selected{% endif %}>{{ book }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="chapter">Chapter:</label>
+                <input type="number" id="chapter" name="chapter" min="1" value="{{ selected_chapter }}" required>
+            </div>
+
+            <div class="form-group">
+                <label for="start-verse">Verses:</label>
+                <div class="verse-range">
+                    <input type="number" id="start-verse" name="start_verse" min="1" value="{{ selected_start_verse }}" required>
+                    <span class="verse-separator">to</span>
+                    <input type="number" id="end-verse" name="end_verse" min="1" value="{{ selected_end_verse }}" required>
+                </div>
+            </div>
+
+            <button type="submit" class="generate-btn">Generate Study</button>
+        </div>
+    </form>
+</section>
+
+<!-- Two-Column Content Layout -->
+<div class="content-container">
+    <!-- Passage Column (Left, Sticky) -->
+    <div class="passage-column">
+        <section class="passage">
+            <h3 id="passage-reference">{{ reference }}</h3>
+            <div class="passage-text">{{ passage_text | replace('\n', '<br>') | safe }}</div>
+        </section>
+    </div>
+
+    <!-- Study Column (Right) -->
+    <div class="study-column">
+        <section class="study">
+            <h3>Study Guide</h3>
+
+            <!-- Purpose Statement -->
+            <div class="study-section purpose-statement-section">
+                <h4>Purpose Statement</h4>
+                <p class="purpose-statement">{{ study.purpose_statement }}</p>
+            </div>
+
+            <!-- Context -->
+            <div class="study-section">
+                <h4>Context</h4>
+                <p class="study-context">{{ study.context }}</p>
+            </div>
+
+            <!-- Key Themes -->
+            <div class="study-section">
+                <h4>Key Themes</h4>
+                <div class="key-themes">
+                    {% for theme in study.key_themes %}
+                    <span class="theme-badge">{{ theme }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="study-section">
+                <h4>Summary</h4>
+                <p class="study-summary">{{ study.summary }}</p>
+            </div>
+
+            <!-- Observation Questions -->
+            <div class="study-section">
+                <h4>Observation Questions</h4>
+                <p class="question-hint">What does the text literally say?</p>
+                <div class="observation-questions-container">
+                    {% for q in study.observation_questions %}
+                    <div class="question-item">
+                        <p class="question">{{ q.question if q is mapping else q }}</p>
+                        {% if q is mapping and q.sample_answer %}
+                        <button class="toggle-answer" onclick="toggleSampleAnswer('observation-{{ loop.index0 }}')" id="toggle-observation-{{ loop.index0 }}">
+                            ▶ Show Sample Answer
+                        </button>
+                        <div id="answer-observation-{{ loop.index0 }}" class="sample-answer hidden">
+                            {{ q.sample_answer }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Interpretation Questions -->
+            <div class="study-section">
+                <h4>Interpretation Questions</h4>
+                <p class="question-hint">What does this passage mean?</p>
+                <div class="interpretation-questions-container">
+                    {% for q in study.interpretation_questions %}
+                    <div class="question-item">
+                        <p class="question">{{ q.question if q is mapping else q }}</p>
+                        {% if q is mapping and q.sample_answer %}
+                        <button class="toggle-answer" onclick="toggleSampleAnswer('interpretation-{{ loop.index0 }}')" id="toggle-interpretation-{{ loop.index0 }}">
+                            ▶ Show Sample Answer
+                        </button>
+                        <div id="answer-interpretation-{{ loop.index0 }}" class="sample-answer hidden">
+                            {{ q.sample_answer }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Application Questions -->
+            <div class="study-section">
+                <h4>Application Questions</h4>
+                <p class="question-hint">How does this apply to your life?</p>
+                <div class="application-questions-container">
+                    {% for q in study.application_questions %}
+                    <div class="question-item">
+                        <p class="question">{{ q.question if q is mapping else q }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Cross References -->
+            <div class="study-section">
+                <h4>Cross References</h4>
+                <div class="cross-references-container">
+                    {% if study.cross_references and study.cross_references|length > 0 %}
+                        {% for ref in study.cross_references %}
+                        <div class="cross-ref-item">
+                            <strong>{{ ref.reference if ref is mapping else ref }}</strong>
+                            {% if ref is mapping and ref.note %}
+                            <span class="ref-note"> - {{ ref.note }}</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                    <p class="no-references">No cross-references for this passage.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Prayer Focus -->
+            <div class="study-section prayer">
+                <h4>Prayer Focus</h4>
+                <p class="prayer-prompt">{{ study.prayer_prompt }}</p>
+            </div>
+        </section>
+    </div>
+</div>
+{% endblock %}
