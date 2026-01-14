@@ -1,0 +1,276 @@
+@import "tailwindcss";
+
+/*
+ * Bible Study Scribby - Warm Beige Theme
+ * A calm, scholarly aesthetic for Bible study
+ */
+
+@theme {
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Lora', 'Georgia', 'Times New Roman', serif;
+
+  /* Question type accent colors */
+  --color-observation: #2B9EA8;
+  --color-observation-light: #E8F6F7;
+  --color-observation-dark: #1D7A82;
+
+  --color-interpretation: #7C3AED;
+  --color-interpretation-light: #EDE9FE;
+  --color-interpretation-dark: #5B21B6;
+
+  /* Warm beige palette */
+  --color-cream: #FDFBF7;
+  --color-cream-dark: #F7F3ED;
+  --color-parchment: #F5F0E6;
+  --color-sand: #E8E0D0;
+  --color-taupe: #C4B8A5;
+
+  /* Text colors */
+  --color-ink: #2D3339;
+  --color-ink-light: #4A5568;
+  --color-ink-muted: #718096;
+
+  /* Dark mode colors */
+  --color-slate: #1A1F2E;
+  --color-slate-light: #242B3D;
+  --color-slate-surface: #2D3548;
+
+  /* Accent */
+  --color-accent: #B8860B;
+  --color-accent-light: #DAA520;
+}
+
+/* CSS Custom Properties for runtime access */
+:root {
+  --bg-main: #FDFBF7;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #F5F0E6;
+  --text-primary: #2D3339;
+  --text-secondary: #4A5568;
+  --text-muted: #718096;
+  --border-color: #E8E0D0;
+
+  /* Warm beige palette */
+  --color-sand: #E8E0D0;
+  --color-taupe: #C4B8A5;
+
+  /* Accent colors for runtime */
+  --color-observation: #2B9EA8;
+  --color-observation-light: #E8F6F7;
+  --color-observation-dark: #1D7A82;
+  --color-interpretation: #7C3AED;
+  --color-interpretation-light: #EDE9FE;
+  --color-interpretation-dark: #5B21B6;
+  --color-accent: #B8860B;
+  --color-accent-light: #DAA520;
+}
+
+.dark {
+  --bg-main: #1A1F2E;
+  --bg-surface: #242B3D;
+  --bg-elevated: #2D3548;
+  --text-primary: #F7FAFC;
+  --text-secondary: #CBD5E0;
+  --text-muted: #A0AEC0;
+  --border-color: #3D4A5C;
+
+  /* Dark mode warm palette */
+  --color-sand: #3D4A5C;
+  --color-taupe: #4A5568;
+
+  /* Accent colors for dark mode */
+  --color-observation: #3DD0DD;
+  --color-observation-light: rgba(43, 158, 168, 0.2);
+  --color-observation-dark: #2B9EA8;
+  --color-interpretation: #A78BFA;
+  --color-interpretation-light: rgba(124, 58, 237, 0.2);
+  --color-interpretation-dark: #7C3AED;
+  --color-accent: #DAA520;
+  --color-accent-light: #F0C040;
+
+  color-scheme: dark;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Passage text styling - scholarly serif */
+.passage-text {
+  font-family: var(--font-serif);
+  font-size: 1.125rem;
+  line-height: 1.9;
+  color: var(--text-primary);
+}
+
+.passage-text sup {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-right: 0.125rem;
+}
+
+/* Question card styles */
+.question-card {
+  padding: 1.25rem;
+  border-radius: 0.75rem;
+  margin-bottom: 1rem;
+  transition: all 0.2s ease;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+}
+
+.question-observation {
+  border-left: 4px solid var(--color-observation);
+  background: linear-gradient(135deg, var(--color-observation-light) 0%, transparent 100%);
+}
+
+.dark .question-observation {
+  background: linear-gradient(135deg, rgba(43, 158, 168, 0.15) 0%, transparent 100%);
+}
+
+.question-interpretation {
+  border-left: 4px solid var(--color-interpretation);
+  background: linear-gradient(135deg, var(--color-interpretation-light) 0%, transparent 100%);
+}
+
+.dark .question-interpretation {
+  background: linear-gradient(135deg, rgba(124, 58, 237, 0.15) 0%, transparent 100%);
+}
+
+.question-application {
+  background-color: var(--bg-elevated);
+  border-left: 4px solid var(--border-color);
+}
+
+/* Premium card styling */
+.card-premium {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.03);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.card-premium:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.dark .card-premium {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Section headers with decorative line */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.section-header::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, var(--border-color), transparent);
+}
+
+/* Decorative verse number styling */
+.verse-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-accent);
+  background-color: var(--bg-elevated);
+  border-radius: 9999px;
+  margin-right: 0.25rem;
+}
+
+/* Loading animation */
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, var(--bg-surface) 25%, var(--bg-elevated) 50%, var(--bg-surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Theme badge styling */
+.theme-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.875rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 9999px;
+  background-color: var(--bg-elevated);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  transition: all 0.2s ease;
+}
+
+.theme-badge:hover {
+  background-color: var(--color-cream-dark);
+  border-color: var(--color-taupe);
+}
+
+.dark .theme-badge:hover {
+  background-color: var(--bg-surface);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection styling */
+::selection {
+  background-color: rgba(43, 158, 168, 0.2);
+  color: inherit;
+}
+
+.dark ::selection {
+  background-color: rgba(124, 58, 237, 0.3);
+}

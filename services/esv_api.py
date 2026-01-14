@@ -1,6 +1,12 @@
+"""
+ESV API Service
+
+Fetches Bible passages from the ESV API.
+Caching is now handled client-side via IndexedDB.
+"""
+
 import httpx
 from config import ESV_API_KEY
-from database import get_cached_passage, cache_passage
 
 ESV_API_URL = "https://api.esv.org/v3/passage/text/"
 
@@ -8,13 +14,13 @@ ESV_API_URL = "https://api.esv.org/v3/passage/text/"
 async def fetch_passage(reference: str) -> str:
     """
     Fetch a Bible passage from the ESV API.
-    Returns cached version if available.
-    """
-    # Check cache first
-    cached = get_cached_passage(reference)
-    if cached:
-        return cached
 
+    Args:
+        reference: Bible reference string (e.g., "John 1:1-18")
+
+    Returns:
+        Passage text or error message
+    """
     if not ESV_API_KEY:
         return f"[ESV API key not configured. Please add ESV_API_KEY to your .env file.\nGet a free key at: https://api.esv.org/]"
 
@@ -44,10 +50,7 @@ async def fetch_passage(reference: str) -> str:
 
             passages = data.get("passages", [])
             if passages:
-                text = passages[0].strip()
-                # Cache the result
-                cache_passage(reference, text)
-                return text
+                return passages[0].strip()
             else:
                 return f"[No passage found for: {reference}]"
 

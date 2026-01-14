@@ -3,4 +3,8 @@ uvicorn[standard]
 jinja2
 python-dotenv
 httpx
+
+# LLM Providers
+groq>=0.4.0
+google-genai>=1.0.0
 anthropic
