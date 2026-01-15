@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { clsx } from 'clsx';
-import { ChevronDown, ChevronUp, Eye, Lightbulb, Heart } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, Lightbulb, Heart, Edit2 } from 'lucide-react';
 import type { QuestionType } from '../../types';
 
 interface QuestionCardProps {
@@ -8,6 +8,9 @@ interface QuestionCardProps {
   question: string;
   answer?: string;
   defaultExpanded?: boolean;
+  editable?: boolean;
+  onQuestionChange?: (newQuestion: string) => void;
+  onAnswerChange?: (newAnswer: string) => void;
 }
 
 const typeConfig: Record<QuestionType, {
@@ -45,10 +48,97 @@ export function QuestionCard({
   question,
   answer,
   defaultExpanded = false,
+  editable = false,
+  onQuestionChange,
+  onAnswerChange,
 }: QuestionCardProps) {
   const [showAnswer, setShowAnswer] = useState(defaultExpanded);
+  const [isEditingQuestion, setIsEditingQuestion] = useState(false);
+  const [isEditingAnswer, setIsEditingAnswer] = useState(false);
+  const [localQuestion, setLocalQuestion] = useState(question);
+  const [localAnswer, setLocalAnswer] = useState(answer || '');
+
+  const questionRef = useRef<HTMLTextAreaElement>(null);
+  const answerRef = useRef<HTMLTextAreaElement>(null);
+
   const config = typeConfig[type];
   const Icon = config.icon;
+
+  // Sync local state with props
+  useEffect(() => {
+    setLocalQuestion(question);
+  }, [question]);
+
+  useEffect(() => {
+    setLocalAnswer(answer || '');
+  }, [answer]);
+
+  // Auto-focus textarea when editing starts
+  useEffect(() => {
+    if (isEditingQuestion && questionRef.current) {
+      questionRef.current.focus();
+      questionRef.current.select();
+    }
+  }, [isEditingQuestion]);
+
+  useEffect(() => {
+    if (isEditingAnswer && answerRef.current) {
+      answerRef.current.focus();
+      answerRef.current.select();
+    }
+  }, [isEditingAnswer]);
+
+  // Debounced save for question
+  useEffect(() => {
+    if (!editable || localQuestion === question) return;
+    const timer = setTimeout(() => {
+      onQuestionChange?.(localQuestion);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [localQuestion, question, editable, onQuestionChange]);
+
+  // Debounced save for answer
+  useEffect(() => {
+    if (!editable || localAnswer === answer) return;
+    const timer = setTimeout(() => {
+      onAnswerChange?.(localAnswer);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [localAnswer, answer, editable, onAnswerChange]);
+
+  const handleQuestionClick = () => {
+    if (editable) {
+      setIsEditingQuestion(true);
+    }
+  };
+
+  const handleAnswerClick = () => {
+    if (editable && answer) {
+      setIsEditingAnswer(true);
+    }
+  };
+
+  const handleQuestionBlur = () => {
+    setIsEditingQuestion(false);
+  };
+
+  const handleAnswerBlur = () => {
+    setIsEditingAnswer(false);
+  };
+
+  const handleQuestionKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsEditingQuestion(false);
+      setLocalQuestion(question);
+    }
+  };
+
+  const handleAnswerKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setIsEditingAnswer(false);
+      setLocalAnswer(answer || '');
+    }
+  };
 
   return (
     <div className={clsx('question-card', config.bgClass)}>
@@ -63,11 +153,40 @@ export function QuestionCard({
         >
           {config.label}
         </span>
+        {editable && (
+          <Edit2 className="h-3 w-3 text-[var(--text-muted)] opacity-50" />
+        )}
       </div>
 
-      <p className="mt-3 text-[var(--text-primary)] font-medium leading-relaxed">
-        {question}
-      </p>
+      {/* Question - Editable */}
+      {isEditingQuestion ? (
+        <textarea
+          ref={questionRef}
+          value={localQuestion}
+          onChange={(e) => setLocalQuestion(e.target.value)}
+          onBlur={handleQuestionBlur}
+          onKeyDown={handleQuestionKeyDown}
+          className="
+            mt-3 w-full
+            text-[var(--text-primary)] font-medium leading-relaxed
+            bg-transparent
+            border-b-2 border-[var(--color-observation)]
+            focus:outline-none focus:border-[var(--color-observation-dark)]
+            resize-none
+          "
+          rows={2}
+        />
+      ) : (
+        <p
+          onClick={handleQuestionClick}
+          className={clsx(
+            'mt-3 text-[var(--text-primary)] font-medium leading-relaxed',
+            editable && 'cursor-text hover:bg-[var(--bg-elevated)]/50 rounded px-1 -mx-1 transition-colors'
+          )}
+        >
+          {localQuestion}
+        </p>
+      )}
 
       {answer && (
         <>
@@ -95,9 +214,34 @@ export function QuestionCard({
 
           {showAnswer && (
             <div className="mt-3 pt-3 border-t border-[var(--border-color)]">
-              <p className="text-[var(--text-secondary)] text-sm leading-relaxed">
-                {answer}
-              </p>
+              {isEditingAnswer ? (
+                <textarea
+                  ref={answerRef}
+                  value={localAnswer}
+                  onChange={(e) => setLocalAnswer(e.target.value)}
+                  onBlur={handleAnswerBlur}
+                  onKeyDown={handleAnswerKeyDown}
+                  className="
+                    w-full
+                    text-[var(--text-secondary)] text-sm leading-relaxed
+                    bg-transparent
+                    border-b-2 border-[var(--color-observation)]
+                    focus:outline-none focus:border-[var(--color-observation-dark)]
+                    resize-none
+                  "
+                  rows={3}
+                />
+              ) : (
+                <p
+                  onClick={handleAnswerClick}
+                  className={clsx(
+                    'text-[var(--text-secondary)] text-sm leading-relaxed',
+                    editable && 'cursor-text hover:bg-[var(--bg-elevated)]/50 rounded px-1 -mx-1 transition-colors'
+                  )}
+                >
+                  {localAnswer}
+                </p>
+              )}
             </div>
           )}
         </>

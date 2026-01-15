@@ -25,14 +25,40 @@ IMPORTANT INSTRUCTIONS:
    - Optionally add a "connection" sentence that bridges to the next section
 
 2. APPLICATION QUESTIONS:
-   - Provide 3-5 application questions at the end
+   - Provide 3 application questions at the end
    - Do NOT provide sample answers for application (personal reflection)
    - Make them practical and actionable
 
 3. CROSS-REFERENCES:
-   - Include 2-3 high-quality cross-references that genuinely illuminate the passage
+   - Include cross references when they have direct involvement or are quoted in the passage.
+   - Many passages in New Testament allude to events/accounts in the Old Testament, would be helpful to include these
    - Each must have a clear explanatory note
-   - Quality over quantity - if no meaningful references exist, use fewer
+   - Quality over quantity - if no meaningful references exist, ok to not have any.
+
+5. THEOLOGICAL GUIDELINES (Reformed Christian):
+   You MUST ensure all generated content aligns with these doctrines:
+
+   a) THE TRINITY: One God existing eternally as three distinct persons - Father, Son, and Holy Spirit - each fully God, sharing one undivided divine essence.
+
+   b) TOTAL DEPRAVITY: All humanity is sinful from birth and utterly unable to save themselves apart from God's sovereign grace.
+
+   c) UNCONDITIONAL ELECTION: God sovereignly chooses those He will save, not based on any foreseen merit, faith, or works in the person.
+
+   d) SUBSTITUTIONARY ATONEMENT: Jesus Christ, fully God and fully man, died as a substitutionary sacrifice bearing the wrath of God for the sins of His people, and rose for their justification.
+
+   e) SALVATION BY GRACE THROUGH FAITH: Salvation is entirely by grace through faith in Christ alone - not by human works, merit, or decision.
+
+   f) SCRIPTURE AUTHORITY: The Bible is the infallible, inerrant Word of God, the final authority for faith and practice.
+
+   g) PERSEVERANCE OF THE SAINTS: Those truly saved by God will be kept by His power unto eternal life and cannot lose their salvation.
+
+6. HANDLING AMBIGUOUS OR DEBATED PASSAGES:
+   - Focus on what the text clearly and concretely states
+   - If a passage has multiple scholarly interpretations on non-essential matters, acknowledge this briefly
+   - Always interpret unclear passages in light of clearer Scripture (let Scripture interpret Scripture)
+   - Never speculate beyond what the text supports
+   - For disputed interpretations, present the Reformed position while noting that debate exists among scholars
+   - Do NOT generate content that contradicts the theological guidelines above
 
 4. OUTPUT FORMAT:
    - Return ONLY valid JSON, no markdown code blocks, no preamble
@@ -40,7 +66,7 @@ IMPORTANT INSTRUCTIONS:
 
 JSON STRUCTURE:
 {{
-    "purpose": "Single-sentence action-focused purpose starting with 'Understand that...' or 'Discover how...'",
+    "purpose": "Single-sentence action-focused purpose starting with an action verb to dictate action/purpose. If passage is more based on truths/knowledge, the verb can just be to 'Know' or to 'Believe' ",
     "context": "2-3 sentences of historical, cultural, or literary background",
     "key_themes": ["theme1", "theme2", "theme3"],
     "study_flow": [
@@ -78,3 +104,67 @@ def format_study_prompt(reference: str, passage_text: str) -> str:
         reference=reference,
         passage_text=passage_text
     )
+
+
+# Flow-based generation prompt addon
+FLOW_CONTEXT_ADDON = """
+
+USER-DEFINED STUDY FLOW CONTEXT:
+The user has specified the following purposes/focuses for each section of this passage:
+
+{flow_context}
+
+Based on the above flow context, please:
+1. Structure your study_flow sections to align with these user-defined purposes
+2. Generate questions that address the specific purposes defined for each section
+3. You are NOT strictly bound to observation-then-interpretation order within sections
+4. Interpretation questions can come at the end of sections if that better serves the flow
+5. Include "feeling" questions (e.g., "How does this truth make you feel?") ONLY when:
+   - The passage reveals profound theological truths about God's character or salvation
+   - The text is meant to evoke an emotional or spiritual response (worship, awe, gratitude)
+   - It naturally follows an interpretation of a moving truth
+   - Do not force feeling questions - only include when genuinely appropriate
+"""
+
+
+def format_study_prompt_with_flow(
+    reference: str,
+    passage_text: str,
+    flow_context: dict | None = None
+) -> str:
+    """
+    Format the study prompt with optional user-defined flow context.
+
+    Args:
+        reference: The passage reference (e.g., "John 1:1-18")
+        passage_text: The full text of the passage
+        flow_context: Optional dict with 'sectionPurposes' list containing
+                      {passageSection, purpose, focusAreas} for each section
+
+    Returns:
+        Formatted prompt string
+    """
+    base_prompt = INTERWOVEN_STUDY_PROMPT.format(
+        reference=reference,
+        passage_text=passage_text
+    )
+
+    if flow_context and flow_context.get('sectionPurposes'):
+        context_lines = []
+        for item in flow_context['sectionPurposes']:
+            line = f"- {item.get('passageSection', 'Section')}: {item.get('purpose', 'General study')}"
+            if item.get('focusAreas'):
+                line += f" (Focus: {', '.join(item['focusAreas'])})"
+            context_lines.append(line)
+
+        flow_addon = FLOW_CONTEXT_ADDON.format(
+            flow_context='\n'.join(context_lines)
+        )
+
+        # Insert before the final JSON instruction
+        return base_prompt.replace(
+            "Respond ONLY with valid JSON.",
+            f"{flow_addon}\n\nRespond ONLY with valid JSON."
+        )
+
+    return base_prompt

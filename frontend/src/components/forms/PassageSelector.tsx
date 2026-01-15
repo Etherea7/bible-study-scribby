@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Sparkles, Loader2 } from 'lucide-react';
 import { BIBLE_BOOKS, getVerseCount, getChapterCount, validateVerseRange } from '../../utils/bibleData';
 
 interface PassageSelectorProps {
@@ -160,10 +159,18 @@ export function PassageSelector({
         <p className="text-red-600 text-sm">{error}</p>
       )}
 
-      <Button type="submit" loading={loading} className="w-full md:w-auto">
-        <Search className="h-4 w-4 mr-2" />
-        Generate Study Guide
-      </Button>
+      <button
+        type="submit"
+        disabled={loading}
+        className="btn-generate w-full md:w-auto"
+      >
+        {loading ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <Sparkles className="h-5 w-5 sparkle-icon" />
+        )}
+        {loading ? 'Generating...' : 'Generate Study Guide'}
+      </button>
     </form>
   );
 }

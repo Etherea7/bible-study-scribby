@@ -5,8 +5,9 @@ import {
   clearHistory,
   exportData,
   downloadExport,
+  importData,
 } from '../db';
-import type { ReadingHistoryItem } from '../types';
+import type { ReadingHistoryItem, ImportResult } from '../types';
 
 /**
  * Hook for fetching reading history
@@ -54,6 +55,26 @@ export function useExportHistory() {
     mutationFn: async () => {
       const data = await exportData();
       downloadExport(data);
+    },
+  });
+}
+
+/**
+ * Hook for importing history from JSON file
+ * Appends to existing data without replacing
+ */
+export function useImportHistory() {
+  const queryClient = useQueryClient();
+
+  return useMutation<ImportResult, Error, File>({
+    mutationFn: async (file: File) => {
+      const text = await file.text();
+      return importData(text);
+    },
+    onSuccess: (result) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['history'] });
+      }
     },
   });
 }

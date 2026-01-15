@@ -1,18 +1,55 @@
+import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Trash2, Download, ArrowLeft, Clock, History } from 'lucide-react';
+import { Trash2, Download, Upload, ArrowLeft, Clock, History, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card, CardHeader, CardTitle, CardContent } from '../components/ui/Card';
 import { LoadingSpinner } from '../components/ui/LoadingSpinner';
-import { useHistory, useDeleteHistory, useExportHistory, useClearHistory } from '../hooks/useHistory';
+import { useHistory, useDeleteHistory, useExportHistory, useClearHistory, useImportHistory } from '../hooks/useHistory';
+import type { ImportResult } from '../types';
 
 export function HistoryPage() {
   const { data: history, isLoading, error } = useHistory();
   const deleteMutation = useDeleteHistory();
   const exportMutation = useExportHistory();
   const clearMutation = useClearHistory();
+  const importMutation = useImportHistory();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   const handleExport = () => {
     exportMutation.mutate();
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImportResult(null);
+      importMutation.mutate(file, {
+        onSuccess: (result) => {
+          setImportResult(result);
+          // Clear the file input so the same file can be selected again if needed
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+          }
+        },
+        onError: (err) => {
+          setImportResult({
+            success: false,
+            imported: { history: 0, passages: 0, studies: 0 },
+            errors: [err.message],
+          });
+        },
+      });
+    }
+  };
+
+  const dismissImportResult = () => {
+    setImportResult(null);
   };
 
   const handleClearAll = () => {
@@ -43,11 +80,9 @@ export function HistoryPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Link to="/">
-              <Button variant="ghost" size="sm">
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back
-              </Button>
+            <Link to="/" className="btn-back">
+              <ArrowLeft className="h-4 w-4" />
+              Back to Study
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)] font-serif">
@@ -58,6 +93,23 @@ export function HistoryPage() {
           </div>
 
           <div className="flex gap-2">
+            {/* Hidden file input for import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleImportClick}
+              loading={importMutation.isPending}
+            >
+              <Upload className="h-4 w-4 mr-1.5" />
+              Import JSON
+            </Button>
             <Button
               variant="secondary"
               size="sm"
@@ -80,6 +132,59 @@ export function HistoryPage() {
             )}
           </div>
         </div>
+
+        {/* Import Result Notification */}
+        {importResult && (
+          <div className={`mb-6 p-4 rounded-lg border ${
+            importResult.success
+              ? 'bg-green-50 border-green-200'
+              : 'bg-red-50 border-red-200'
+          }`}>
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-3">
+                {importResult.success ? (
+                  <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                )}
+                <div>
+                  <p className={`font-medium ${
+                    importResult.success ? 'text-green-800' : 'text-red-800'
+                  }`}>
+                    {importResult.success ? 'Import Successful' : 'Import Failed'}
+                  </p>
+                  {importResult.success && (
+                    <p className="text-sm text-green-700 mt-1">
+                      Imported {importResult.imported.history} history items,{' '}
+                      {importResult.imported.passages} passages,{' '}
+                      {importResult.imported.studies} studies
+                    </p>
+                  )}
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <ul className="text-sm text-red-700 mt-1 list-disc list-inside">
+                      {importResult.errors.slice(0, 5).map((err, i) => (
+                        <li key={i}>{err}</li>
+                      ))}
+                      {importResult.errors.length > 5 && (
+                        <li>...and {importResult.errors.length - 5} more errors</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={dismissImportResult}
+                className={`text-sm ${
+                  importResult.success
+                    ? 'text-green-600 hover:text-green-800'
+                    : 'text-red-600 hover:text-red-800'
+                }`}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Loading State */}
         {isLoading && (

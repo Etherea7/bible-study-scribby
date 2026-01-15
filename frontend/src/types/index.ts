@@ -85,3 +85,74 @@ export interface BibleBook {
   name: string;
   chapters: number;
 }
+
+// Column layout types (for 3-column drag-drop dashboard)
+
+export type ColumnId = 'scripture' | 'flow' | 'guide';
+
+export interface ColumnConfig {
+  id: ColumnId;
+  label: string;
+  visible: boolean;
+}
+
+// Editable study types (for user modifications)
+
+export interface EditableStudyFlowItem extends StudyFlowItem {
+  id: string;
+  purpose?: string;
+  isEdited?: boolean;
+}
+
+export interface EditableStudy extends Study {
+  id: string;
+  study_flow: EditableStudyFlowItem[];
+  lastModified?: Date;
+  isEdited?: boolean;
+}
+
+// Study flow context (for AI generation with user-defined purposes)
+
+export interface StudyFlowContext {
+  sectionPurposes: {
+    passageSection: string;
+    purpose: string;
+    focusAreas?: string[];
+  }[];
+}
+
+// Import/Export types
+
+export interface ExportData {
+  exportedAt: string;
+  version: string;
+  history: ReadingHistoryItem[];
+  passages: CachedPassage[];
+  studies: CachedStudy[];
+}
+
+export interface ImportResult {
+  success: boolean;
+  imported: {
+    history: number;
+    passages: number;
+    studies: number;
+  };
+  errors?: string[];
+}
+
+// User preferences (stored in Dexie)
+
+export interface UserPreference {
+  key: string;
+  value: unknown;
+}
+
+// Edited study storage
+
+export interface EditedStudyRecord {
+  id: string;
+  reference: string;
+  study: EditableStudy;
+  lastModified: Date;
+}
