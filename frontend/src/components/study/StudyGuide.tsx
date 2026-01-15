@@ -42,11 +42,11 @@ export function StudyGuide({ study, provider }: StudyGuideProps) {
         animate={{ opacity: 1, y: 0 }}
       >
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2 border-b-0 pb-2">
+          <CardHeader className="flex flex-row items-center gap-2">
             <Target className="h-5 w-5 text-[var(--color-observation)]" />
             <CardTitle>Purpose</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent>
             <p className="text-lg font-medium text-[var(--text-primary)] font-serif">
               {study.purpose}
             </p>
@@ -61,11 +61,11 @@ export function StudyGuide({ study, provider }: StudyGuideProps) {
         transition={{ delay: 0.1 }}
       >
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2 border-b-0 pb-2">
+          <CardHeader className="flex flex-row items-center gap-2">
             <Map className="h-5 w-5 text-[var(--color-accent)]" />
             <CardTitle>Context</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent>
             <p className="text-[var(--text-secondary)] leading-relaxed">{study.context}</p>
           </CardContent>
         </Card>
@@ -78,11 +78,11 @@ export function StudyGuide({ study, provider }: StudyGuideProps) {
         transition={{ delay: 0.2 }}
       >
         <Card>
-          <CardHeader className="flex flex-row items-center gap-2 border-b-0 pb-2">
+          <CardHeader className="flex flex-row items-center gap-2">
             <Tag className="h-5 w-5 text-[var(--color-interpretation)]" />
             <CardTitle>Key Themes</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent>
             <div className="flex flex-wrap gap-2">
               {study.key_themes.map((theme, index) => (
                 <span
@@ -121,11 +121,11 @@ export function StudyGuide({ study, provider }: StudyGuideProps) {
         transition={{ delay: 0.4 }}
       >
         <Card variant="elevated">
-          <CardHeader className="flex flex-row items-center gap-2 border-b-0 pb-2">
+          <CardHeader className="flex flex-row items-center gap-2">
             <FileText className="h-5 w-5 text-[var(--text-muted)]" />
             <CardTitle>Summary</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent>
             <p className="text-[var(--text-secondary)] leading-relaxed">
               {study.summary}
             </p>
@@ -195,11 +195,11 @@ export function StudyGuide({ study, provider }: StudyGuideProps) {
         transition={{ delay: 0.7 }}
       >
         <Card className="bg-gradient-to-br from-[var(--color-interpretation-light)] to-[var(--bg-elevated)] border-[var(--color-interpretation)]/20">
-          <CardHeader className="flex flex-row items-center gap-2 border-b-0 pb-2">
+          <CardHeader className="flex flex-row items-center gap-2">
             <MessageCircle className="h-5 w-5 text-[var(--color-interpretation)]" />
             <CardTitle>Prayer Focus</CardTitle>
           </CardHeader>
-          <CardContent className="pt-0">
+          <CardContent>
             <p className="text-[var(--text-secondary)] italic leading-relaxed font-serif">
               {study.prayer_prompt}
             </p>

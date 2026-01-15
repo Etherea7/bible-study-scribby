@@ -26,3 +26,11 @@ Reformed Christian doctrine affirms that there is one God who eternally exists a
 
 ## Defered
 1. API Endpoints for additional functions.
+2. Add ability to create/edit study without AI
+3. Add ability to parse the JSON studies into a template for a word doc for a study to be printed.
+4. Make everything Client side so it's not necessary to have load balancing.
+5. Allow users to key in their own API key, this data will persist in their browser.
+6. Loading Bar is not synced.
+7. Add Dev logs, to see which API is being used
+8. Include ability to change models.
+9. Viewing the studies from history still doesnt work.

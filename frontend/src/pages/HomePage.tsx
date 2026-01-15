@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Sparkles, Info } from 'lucide-react';
+import { BookOpen, Sparkles, Info, Save, AlertCircle, RotateCcw } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -16,12 +16,14 @@ import {
 } from '@dnd-kit/sortable';
 import { PassageSelector } from '../components/forms/PassageSelector';
 import { PassageDisplay } from '../components/study/PassageDisplay';
-import { StudyGuide } from '../components/study/StudyGuide';
 import { StudyFlowEditor } from '../components/study/StudyFlowEditor';
+import { EditableStudyGuide } from '../components/study/EditableStudyGuide';
 import { DraggableColumn } from '../components/layout/DraggableColumn';
 import { LoadingOverlay } from '../components/ui/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { useStudyGeneration } from '../hooks/useStudyGeneration';
+import { useEditableStudy } from '../hooks/useEditableStudy';
+import { useBeforeUnload } from '../hooks/useBeforeUnload';
 import { getColumnOrder, setColumnOrder } from '../db';
 import type { Study, ColumnId, StudyFlowContext } from '../types';
 
@@ -51,6 +53,27 @@ export function HomePage() {
   const [flowContext, setFlowContext] = useState<StudyFlowContext | undefined>();
 
   const generateMutation = useStudyGeneration();
+
+  // Editable study hook
+  const editableStudy = useEditableStudy(currentStudy?.study || null);
+
+  // Warn user before leaving with unsaved changes
+  useBeforeUnload(editableStudy.isDirty);
+
+  // Ctrl+S keyboard shortcut to save
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        if (editableStudy.isDirty && currentStudy) {
+          handleSave();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editableStudy.isDirty, currentStudy]);
 
   // Configure drag sensors
   const sensors = useSensors(
@@ -114,6 +137,30 @@ export function HomePage() {
     }
   };
 
+  const handleSave = async () => {
+    if (!currentStudy || !editableStudy.isDirty) return;
+
+    try {
+      await editableStudy.saveToHistory(
+        currentStudy.reference,
+        currentStudy.passage_text,
+        currentStudy.provider
+      );
+    } catch (error) {
+      console.error('Failed to save study:', error);
+    }
+  };
+
+  const handleDiscard = () => {
+    if (
+      window.confirm(
+        'Are you sure you want to discard your changes? This cannot be undone.'
+      )
+    ) {
+      editableStudy.discardChanges();
+    }
+  };
+
   // Render a column by its ID
   const renderColumn = (columnId: ColumnId) => {
     if (!currentStudy) return null;
@@ -136,16 +183,38 @@ export function HomePage() {
           />
         );
       case 'guide':
-        return (
-          <StudyGuide
-            study={currentStudy.study}
+        return editableStudy.study ? (
+          <EditableStudyGuide
+            study={editableStudy.study}
             provider={currentStudy.provider}
+            validationErrors={editableStudy.validationErrors}
+            onUpdatePurpose={editableStudy.updatePurpose}
+            onUpdateContext={editableStudy.updateContext}
+            onUpdateSummary={editableStudy.updateSummary}
+            onUpdatePrayerPrompt={editableStudy.updatePrayerPrompt}
+            onAddTheme={editableStudy.addTheme}
+            onUpdateTheme={editableStudy.updateTheme}
+            onRemoveTheme={editableStudy.removeTheme}
+            onAddQuestion={editableStudy.addQuestion}
+            onUpdateQuestion={editableStudy.updateQuestion}
+            onRemoveQuestion={editableStudy.removeQuestion}
+            onReorderQuestions={editableStudy.reorderQuestions}
+            onAddApplicationQuestion={editableStudy.addApplicationQuestion}
+            onUpdateApplicationQuestion={editableStudy.updateApplicationQuestion}
+            onRemoveApplicationQuestion={editableStudy.removeApplicationQuestion}
+            onAddCrossReference={editableStudy.addCrossReference}
+            onUpdateCrossReference={editableStudy.updateCrossReference}
+            onRemoveCrossReference={editableStudy.removeCrossReference}
+            onUpdateSectionHeading={editableStudy.updateSectionHeading}
+            onUpdateSectionConnection={editableStudy.updateSectionConnection}
           />
-        );
+        ) : null;
       default:
         return null;
     }
   };
+
+  const hasValidationErrors = Object.keys(editableStudy.validationErrors).length > 0;
 
   return (
     <div className="min-h-screen bg-[var(--bg-main)]">
@@ -167,6 +236,67 @@ export function HomePage() {
             </p>
           </div>
         </div>
+
+        {/* Save Bar - Show when study exists */}
+        {currentStudy && (
+          <div className="mb-6 flex items-center justify-between p-4 bg-[var(--bg-elevated)] rounded-lg border border-[var(--border-color)]">
+            <div className="flex items-center gap-4">
+              {editableStudy.isDirty && (
+                <span className="text-amber-600 flex items-center gap-1.5 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Unsaved changes
+                </span>
+              )}
+              {editableStudy.study?.isSaved && !editableStudy.isDirty && (
+                <span className="text-green-600 flex items-center gap-1.5 text-sm">
+                  <Save className="h-4 w-4" />
+                  Saved to history
+                </span>
+              )}
+              {hasValidationErrors && (
+                <span className="text-red-500 flex items-center gap-1.5 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Fix validation errors before saving
+                </span>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleDiscard}
+                disabled={!editableStudy.isDirty}
+                className="
+                  flex items-center gap-1.5 px-4 py-2
+                  text-sm font-medium
+                  text-[var(--text-secondary)]
+                  hover:text-[var(--text-primary)]
+                  hover:bg-[var(--bg-surface)]
+                  rounded-lg
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-colors
+                "
+              >
+                <RotateCcw className="h-4 w-4" />
+                Discard
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={!editableStudy.isDirty || hasValidationErrors || editableStudy.isSaving}
+                className="
+                  flex items-center gap-1.5 px-4 py-2
+                  text-sm font-medium
+                  bg-[var(--color-observation)] text-white
+                  hover:bg-[var(--color-observation-dark)]
+                  rounded-lg
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-colors
+                "
+              >
+                <Save className="h-4 w-4" />
+                {editableStudy.isSaving ? 'Saving...' : 'Save Study'}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Passage Selector */}
         <Card className="mb-8">

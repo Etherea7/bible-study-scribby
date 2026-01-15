@@ -31,7 +31,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className }: CardHeaderProps) {
   return (
-    <div className={clsx('mb-4 pb-4 border-b border-[var(--border-color)]', className)}>
+    <div className={clsx('px-6 pt-6 mb-2 pb-3 border-b border-[var(--border-color)]', className)}>
       {children}
     </div>
   );
@@ -64,7 +64,7 @@ interface CardContentProps {
 
 export function CardContent({ children, className }: CardContentProps) {
   return (
-    <div className={clsx('text-[var(--text-secondary)] p-6', className)}>
+    <div className={clsx('text-[var(--text-secondary)] px-6 pb-6 pt-4', className)}>
       {children}
     </div>
   );

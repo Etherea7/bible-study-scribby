@@ -95,7 +95,7 @@ export function validateImportData(data: unknown): ValidationResult {
   }
 
   // Format error messages for user display
-  const errors = result.error.errors.map((e) => {
+  const errors = result.error.issues.map((e) => {
     const path = e.path.join('.');
     return path ? `${path}: ${e.message}` : e.message;
   });

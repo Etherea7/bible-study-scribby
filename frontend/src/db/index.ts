@@ -15,7 +15,6 @@ import type {
   Study,
   EditedStudyRecord,
   UserPreference,
-  ExportData,
   ImportResult,
   ColumnId,
 } from '../types';

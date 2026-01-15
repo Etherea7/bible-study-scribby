@@ -81,6 +81,49 @@ export interface ProvidersResponse {
 
 export type QuestionType = 'observation' | 'interpretation' | 'application';
 
+// Extended question type with "feeling" for personal reflection
+export type EditableQuestionType = 'observation' | 'interpretation' | 'feeling' | 'application';
+
+// Question with ID for tracking edits
+export interface EditableQuestion {
+  id: string;
+  type: EditableQuestionType;
+  question: string;
+  answer?: string;  // Optional for application/feeling
+}
+
+// Cross reference with ID for tracking edits
+export interface EditableCrossReference {
+  id: string;
+  reference: string;
+  note: string;
+}
+
+// Study flow section with editable questions
+export interface EditableStudyFlowSection {
+  id: string;
+  passage_section: string;
+  section_heading: string;
+  questions: EditableQuestion[];  // All questions for this section
+  connection?: string;
+}
+
+// Full editable study structure
+export interface EditableStudyFull {
+  id: string;
+  purpose: string;
+  context: string;
+  key_themes: string[];
+  study_flow: EditableStudyFlowSection[];
+  summary: string;
+  application_questions: EditableQuestion[];
+  cross_references: EditableCrossReference[];
+  prayer_prompt: string;
+  lastModified?: Date;
+  isEdited?: boolean;
+  isSaved?: boolean;  // Whether saved to history
+}
+
 export interface BibleBook {
   name: string;
   chapters: number;

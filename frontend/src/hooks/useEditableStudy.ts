@@ -2,212 +2,486 @@
  * useEditableStudy - Hook for managing editable study state
  *
  * Features:
- * - Converts a Study to an EditableStudy with UUIDs
- * - Tracks modifications to questions and answers
- * - Auto-saves changes to Dexie editedStudies table
- * - Provides update functions for individual fields
+ * - Converts a Study to an EditableStudyFull with UUIDs
+ * - Tracks modifications with isDirty flag
+ * - Manual save only (no auto-save)
+ * - Provides update functions for all fields
+ * - Supports question CRUD and reordering
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import { saveEditedStudy, getEditedStudy } from '../db';
-import type { Study, EditableStudy, EditableStudyFlowItem } from '../types';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { addToHistory } from '../db';
+import type {
+  Study,
+  EditableStudyFull,
+  EditableQuestion,
+  EditableCrossReference,
+  EditableQuestionType,
+} from '../types';
 
 // Generate a simple UUID
 function generateId(): string {
   return crypto.randomUUID();
 }
 
-// Convert a Study to an EditableStudy
-function toEditableStudy(study: Study, existingId?: string): EditableStudy {
+// Convert a Study to an EditableStudyFull
+function toEditableStudy(study: Study): EditableStudyFull {
   return {
-    ...study,
-    id: existingId || generateId(),
+    id: generateId(),
+    purpose: study.purpose,
+    context: study.context,
+    key_themes: [...study.key_themes],
     study_flow: study.study_flow.map((item) => ({
-      ...item,
       id: generateId(),
-      isEdited: false,
+      passage_section: item.passage_section,
+      section_heading: item.section_heading,
+      questions: [
+        {
+          id: generateId(),
+          type: 'observation' as EditableQuestionType,
+          question: item.observation_question,
+          answer: item.observation_answer,
+        },
+        {
+          id: generateId(),
+          type: 'interpretation' as EditableQuestionType,
+          question: item.interpretation_question,
+          answer: item.interpretation_answer,
+        },
+      ],
+      connection: item.connection,
     })),
+    summary: study.summary,
+    application_questions: study.application_questions.map((q) => ({
+      id: generateId(),
+      type: 'application' as EditableQuestionType,
+      question: q,
+    })),
+    cross_references: study.cross_references.map((ref) => ({
+      id: generateId(),
+      reference: ref.reference,
+      note: ref.note,
+    })),
+    prayer_prompt: study.prayer_prompt,
     lastModified: new Date(),
     isEdited: false,
+    isSaved: false,
   };
 }
 
-interface UseEditableStudyOptions {
-  autoSave?: boolean;
-  saveDelay?: number;
+interface UseEditableStudyResult {
+  study: EditableStudyFull | null;
+  isDirty: boolean;
+  isSaving: boolean;
+  validationErrors: { purpose?: string; context?: string };
+
+  // Field updaters
+  updatePurpose: (value: string) => void;
+  updateContext: (value: string) => void;
+  updateSummary: (value: string) => void;
+  updatePrayerPrompt: (value: string) => void;
+
+  // Theme management
+  addTheme: (theme: string) => void;
+  updateTheme: (index: number, value: string) => void;
+  removeTheme: (index: number) => void;
+
+  // Question management (within study flow sections)
+  addQuestion: (sectionId: string, type: EditableQuestionType, question: string, answer?: string) => void;
+  updateQuestion: (sectionId: string, questionId: string, updates: Partial<EditableQuestion>) => void;
+  removeQuestion: (sectionId: string, questionId: string) => void;
+  reorderQuestions: (sectionId: string, fromIndex: number, toIndex: number) => void;
+
+  // Application questions (separate section)
+  addApplicationQuestion: (question: string) => void;
+  updateApplicationQuestion: (id: string, updates: Partial<EditableQuestion>) => void;
+  removeApplicationQuestion: (id: string) => void;
+
+  // Cross references
+  addCrossReference: (reference: string, note: string) => void;
+  updateCrossReference: (id: string, updates: Partial<EditableCrossReference>) => void;
+  removeCrossReference: (id: string) => void;
+
+  // Section management
+  updateSectionHeading: (sectionId: string, heading: string) => void;
+  updateSectionConnection: (sectionId: string, connection: string) => void;
+
+  // Actions
+  saveToHistory: (reference: string, passageText: string, provider: string) => Promise<void>;
+  discardChanges: () => void;
 }
 
 export function useEditableStudy(
-  initialStudy: Study | null,
-  reference: string,
-  options: UseEditableStudyOptions = {}
-) {
-  const { autoSave = true, saveDelay = 1000 } = options;
-
-  const [study, setStudy] = useState<EditableStudy | null>(null);
+  initialStudy: Study | null
+): UseEditableStudyResult {
+  const [study, setStudy] = useState<EditableStudyFull | null>(null);
+  const [originalStudy, setOriginalStudy] = useState<Study | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Load edited study from Dexie or create from initial
+  // Initialize editable study from initial study
   useEffect(() => {
-    async function loadStudy() {
-      if (!initialStudy) {
-        setStudy(null);
-        return;
-      }
-
-      // Try to load edited version from Dexie
-      const edited = await getEditedStudy(reference);
-      if (edited) {
-        setStudy(edited.study);
-        setLastSaved(edited.lastModified);
-      } else {
-        setStudy(toEditableStudy(initialStudy));
-      }
-    }
-
-    loadStudy();
-  }, [initialStudy, reference]);
-
-  // Auto-save when study changes
-  useEffect(() => {
-    if (!autoSave || !study?.isEdited) return;
-
-    const timer = setTimeout(async () => {
-      setIsSaving(true);
-      try {
-        await saveEditedStudy({
-          id: study.id,
-          reference,
-          study,
-          lastModified: new Date(),
-        });
-        setLastSaved(new Date());
-      } catch (error) {
-        console.error('Failed to save edited study:', error);
-      } finally {
-        setIsSaving(false);
-      }
-    }, saveDelay);
-
-    return () => clearTimeout(timer);
-  }, [study, reference, autoSave, saveDelay]);
-
-  // Update a study flow item field
-  const updateStudyFlowItem = useCallback(
-    (
-      sectionId: string,
-      field: keyof EditableStudyFlowItem,
-      value: string
-    ) => {
-      setStudy((prev) => {
-        if (!prev) return null;
-
-        return {
-          ...prev,
-          isEdited: true,
-          lastModified: new Date(),
-          study_flow: prev.study_flow.map((item) =>
-            item.id === sectionId
-              ? { ...item, [field]: value, isEdited: true }
-              : item
-          ),
-        };
-      });
-    },
-    []
-  );
-
-  // Update observation question
-  const updateObservationQuestion = useCallback(
-    (sectionId: string, question: string) => {
-      updateStudyFlowItem(sectionId, 'observation_question', question);
-    },
-    [updateStudyFlowItem]
-  );
-
-  // Update observation answer
-  const updateObservationAnswer = useCallback(
-    (sectionId: string, answer: string) => {
-      updateStudyFlowItem(sectionId, 'observation_answer', answer);
-    },
-    [updateStudyFlowItem]
-  );
-
-  // Update interpretation question
-  const updateInterpretationQuestion = useCallback(
-    (sectionId: string, question: string) => {
-      updateStudyFlowItem(sectionId, 'interpretation_question', question);
-    },
-    [updateStudyFlowItem]
-  );
-
-  // Update interpretation answer
-  const updateInterpretationAnswer = useCallback(
-    (sectionId: string, answer: string) => {
-      updateStudyFlowItem(sectionId, 'interpretation_answer', answer);
-    },
-    [updateStudyFlowItem]
-  );
-
-  // Update an application question
-  const updateApplicationQuestion = useCallback(
-    (index: number, question: string) => {
-      setStudy((prev) => {
-        if (!prev) return null;
-
-        const newQuestions = [...prev.application_questions];
-        newQuestions[index] = question;
-
-        return {
-          ...prev,
-          isEdited: true,
-          lastModified: new Date(),
-          application_questions: newQuestions,
-        };
-      });
-    },
-    []
-  );
-
-  // Reset to original study
-  const resetStudy = useCallback(() => {
     if (initialStudy) {
       setStudy(toEditableStudy(initialStudy));
+      setOriginalStudy(initialStudy);
+    } else {
+      setStudy(null);
+      setOriginalStudy(null);
     }
   }, [initialStudy]);
 
-  // Manual save
-  const saveNow = useCallback(async () => {
-    if (!study) return;
-
-    setIsSaving(true);
-    try {
-      await saveEditedStudy({
-        id: study.id,
-        reference,
-        study,
-        lastModified: new Date(),
-      });
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error('Failed to save edited study:', error);
-      throw error;
-    } finally {
-      setIsSaving(false);
+  // Validation errors
+  const validationErrors = useMemo(() => {
+    const errors: { purpose?: string; context?: string } = {};
+    if (study && !study.purpose.trim()) {
+      errors.purpose = 'Purpose statement is required';
     }
-  }, [study, reference]);
+    if (study && !study.context.trim()) {
+      errors.context = 'Context is required';
+    }
+    return errors;
+  }, [study]);
+
+  // Check if study has been modified
+  const isDirty = useMemo(() => {
+    return study?.isEdited ?? false;
+  }, [study]);
+
+  // Field updaters
+  const updatePurpose = useCallback((value: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return { ...prev, purpose: value, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  const updateContext = useCallback((value: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return { ...prev, context: value, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  const updateSummary = useCallback((value: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return { ...prev, summary: value, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  const updatePrayerPrompt = useCallback((value: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return { ...prev, prayer_prompt: value, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  // Theme management
+  const addTheme = useCallback((theme: string) => {
+    if (!theme.trim()) return;
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        key_themes: [...prev.key_themes, theme.trim()],
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  const updateTheme = useCallback((index: number, value: string) => {
+    setStudy((prev) => {
+      if (!prev || index < 0 || index >= prev.key_themes.length) return prev;
+      const newThemes = [...prev.key_themes];
+      newThemes[index] = value;
+      return { ...prev, key_themes: newThemes, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  const removeTheme = useCallback((index: number) => {
+    setStudy((prev) => {
+      if (!prev || index < 0 || index >= prev.key_themes.length) return prev;
+      const newThemes = prev.key_themes.filter((_, i) => i !== index);
+      return { ...prev, key_themes: newThemes, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  // Question management (within study flow sections)
+  const addQuestion = useCallback(
+    (sectionId: string, type: EditableQuestionType, question: string, answer?: string) => {
+      setStudy((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          study_flow: prev.study_flow.map((section) =>
+            section.id === sectionId
+              ? {
+                  ...section,
+                  questions: [
+                    ...section.questions,
+                    { id: generateId(), type, question, answer },
+                  ],
+                }
+              : section
+          ),
+          isEdited: true,
+          lastModified: new Date(),
+        };
+      });
+    },
+    []
+  );
+
+  const updateQuestion = useCallback(
+    (sectionId: string, questionId: string, updates: Partial<EditableQuestion>) => {
+      setStudy((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          study_flow: prev.study_flow.map((section) =>
+            section.id === sectionId
+              ? {
+                  ...section,
+                  questions: section.questions.map((q) =>
+                    q.id === questionId ? { ...q, ...updates } : q
+                  ),
+                }
+              : section
+          ),
+          isEdited: true,
+          lastModified: new Date(),
+        };
+      });
+    },
+    []
+  );
+
+  const removeQuestion = useCallback((sectionId: string, questionId: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        study_flow: prev.study_flow.map((section) =>
+          section.id === sectionId
+            ? {
+                ...section,
+                questions: section.questions.filter((q) => q.id !== questionId),
+              }
+            : section
+        ),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  const reorderQuestions = useCallback(
+    (sectionId: string, fromIndex: number, toIndex: number) => {
+      setStudy((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          study_flow: prev.study_flow.map((section) => {
+            if (section.id !== sectionId) return section;
+            const questions = [...section.questions];
+            const [removed] = questions.splice(fromIndex, 1);
+            questions.splice(toIndex, 0, removed);
+            return { ...section, questions };
+          }),
+          isEdited: true,
+          lastModified: new Date(),
+        };
+      });
+    },
+    []
+  );
+
+  // Application questions
+  const addApplicationQuestion = useCallback((question: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        application_questions: [
+          ...prev.application_questions,
+          { id: generateId(), type: 'application' as EditableQuestionType, question },
+        ],
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  const updateApplicationQuestion = useCallback(
+    (id: string, updates: Partial<EditableQuestion>) => {
+      setStudy((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          application_questions: prev.application_questions.map((q) =>
+            q.id === id ? { ...q, ...updates } : q
+          ),
+          isEdited: true,
+          lastModified: new Date(),
+        };
+      });
+    },
+    []
+  );
+
+  const removeApplicationQuestion = useCallback((id: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        application_questions: prev.application_questions.filter((q) => q.id !== id),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  // Cross references
+  const addCrossReference = useCallback((reference: string, note: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        cross_references: [
+          ...prev.cross_references,
+          { id: generateId(), reference, note },
+        ],
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  const updateCrossReference = useCallback(
+    (id: string, updates: Partial<EditableCrossReference>) => {
+      setStudy((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          cross_references: prev.cross_references.map((ref) =>
+            ref.id === id ? { ...ref, ...updates } : ref
+          ),
+          isEdited: true,
+          lastModified: new Date(),
+        };
+      });
+    },
+    []
+  );
+
+  const removeCrossReference = useCallback((id: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        cross_references: prev.cross_references.filter((ref) => ref.id !== id),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  // Section management
+  const updateSectionHeading = useCallback((sectionId: string, heading: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        study_flow: prev.study_flow.map((section) =>
+          section.id === sectionId ? { ...section, section_heading: heading } : section
+        ),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  const updateSectionConnection = useCallback((sectionId: string, connection: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        study_flow: prev.study_flow.map((section) =>
+          section.id === sectionId ? { ...section, connection } : section
+        ),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  // Save to history
+  const saveToHistory = useCallback(
+    async (reference: string, _passageText: string, provider: string) => {
+      if (!study) return;
+      if (Object.keys(validationErrors).length > 0) {
+        throw new Error('Cannot save: validation errors exist');
+      }
+
+      setIsSaving(true);
+      try {
+        // Extract book, chapter, verses from reference
+        const match = reference.match(/^(.+?)\s+(\d+)(?::(\d+)(?:-(\d+))?)?$/);
+        if (!match) {
+          throw new Error('Invalid reference format');
+        }
+
+        const [, book, chapterStr, startVerseStr, endVerseStr] = match;
+        const chapter = parseInt(chapterStr, 10);
+        const startVerse = startVerseStr ? parseInt(startVerseStr, 10) : undefined;
+        const endVerse = endVerseStr ? parseInt(endVerseStr, 10) : undefined;
+
+        await addToHistory(book, chapter, startVerse, endVerse, reference, provider);
+
+        // Mark as saved
+        setStudy((prev) => {
+          if (!prev) return null;
+          return { ...prev, isSaved: true, isEdited: false };
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [study, validationErrors]
+  );
+
+  // Discard changes and reset to original
+  const discardChanges = useCallback(() => {
+    if (originalStudy) {
+      setStudy(toEditableStudy(originalStudy));
+    }
+  }, [originalStudy]);
 
   return {
     study,
+    isDirty,
     isSaving,
-    lastSaved,
-    updateObservationQuestion,
-    updateObservationAnswer,
-    updateInterpretationQuestion,
-    updateInterpretationAnswer,
+    validationErrors,
+    updatePurpose,
+    updateContext,
+    updateSummary,
+    updatePrayerPrompt,
+    addTheme,
+    updateTheme,
+    removeTheme,
+    addQuestion,
+    updateQuestion,
+    removeQuestion,
+    reorderQuestions,
+    addApplicationQuestion,
     updateApplicationQuestion,
-    resetStudy,
-    saveNow,
+    removeApplicationQuestion,
+    addCrossReference,
+    updateCrossReference,
+    removeCrossReference,
+    updateSectionHeading,
+    updateSectionConnection,
+    saveToHistory,
+    discardChanges,
   };
 }

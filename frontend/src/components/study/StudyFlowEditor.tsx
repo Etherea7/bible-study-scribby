@@ -62,7 +62,7 @@ export function StudyFlowEditor({
   };
 
   // Get purpose for a section from flow context, or generate a default
-  const getSectionPurpose = (item: StudyFlowItem, index: number): string => {
+  const getSectionPurpose = (_item: StudyFlowItem, index: number): string => {
     if (flowContext?.sectionPurposes[index]?.purpose) {
       return flowContext.sectionPurposes[index].purpose;
     }
