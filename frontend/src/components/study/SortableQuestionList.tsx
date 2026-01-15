@@ -23,6 +23,7 @@ import type { EditableQuestion, EditableQuestionType } from '../../types';
 interface SortableQuestionListProps {
   sectionId?: string;  // Optional - kept for interface compatibility
   questions: EditableQuestion[];
+  passageContext?: string;  // For AI enhancement
   onQuestionChange: (questionId: string, question: string) => void;
   onAnswerChange: (questionId: string, answer: string) => void;
   onTypeChange: (questionId: string, type: EditableQuestionType) => void;
@@ -33,6 +34,7 @@ interface SortableQuestionListProps {
 export function SortableQuestionList({
   sectionId: _sectionId,  // Unused but kept for interface
   questions,
+  passageContext,
   onQuestionChange,
   onAnswerChange,
   onTypeChange,
@@ -76,6 +78,7 @@ export function SortableQuestionList({
               type={question.type}
               question={question.question}
               answer={question.answer}
+              passageContext={passageContext}
               onQuestionChange={(q) => onQuestionChange(question.id, q)}
               onAnswerChange={(a) => onAnswerChange(question.id, a)}
               onTypeChange={(t) => onTypeChange(question.id, t)}

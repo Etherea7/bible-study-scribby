@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Moon, Sun, History, BookOpen } from 'lucide-react';
+import { Moon, Sun, History, BookOpen, Settings } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useDarkMode } from '../../hooks/useDarkMode';
+import { ApiKeySettings } from '../settings/ApiKeySettings';
 
 export function Header() {
   const [isDark, setIsDark] = useDarkMode();
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-50 border-b border-[var(--border-color)] bg-[var(--bg-surface)]/90 backdrop-blur-md transition-colors duration-300">
@@ -39,6 +42,16 @@ export function Header() {
             <Button
               variant="ghost"
               size="sm"
+              onClick={() => setIsSettingsOpen(true)}
+              aria-label="API Key Settings"
+              className="!p-2"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => setIsDark(!isDark)}
               aria-label="Toggle dark mode"
               className="!p-2"
@@ -52,6 +65,9 @@ export function Header() {
           </nav>
         </div>
       </div>
+
+      {/* API Key Settings Modal */}
+      <ApiKeySettings isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
     </header>
   );
 }

@@ -52,13 +52,14 @@ cd frontend && npm run dev
 - Each provider has its own module in `services/providers/`
 
 **services/prompts/study_prompt.py**
-- `INTERWOVEN_STUDY_PROMPT` - Main study generation prompt
+- `STUDY_PROMPT` - Unified study generation prompt with optional flow context
+- `format_study_prompt(reference, passage_text, flow_context?)` - Single formatter function
 - **Doctrinal guardrails** for Reformed Christian theology:
   - Trinity, Total Depravity, Unconditional Election
   - Substitutionary Atonement, Salvation by Grace through Faith
   - Scripture Authority, Perseverance of Saints
 - Handling ambiguous passages: focus on concrete text, note debates
-- `format_study_prompt_with_flow()` - Supports user-defined flow context for custom generation
+- Flow context: When provided, adds instructions for custom question generation per section
 
 **services/esv_api.py**
 - Fetches passage text from ESV API
@@ -78,12 +79,18 @@ cd frontend && npm run dev
 **Directory Structure**
 ```
 frontend/src/
+├── api/
+│   ├── studyApi.ts        # Backend API calls
+│   ├── llmClient.ts       # Direct OpenRouter/ESV API calls (client-side)
+│   └── enhanceClient.ts   # AI enhancement functions
 ├── components/
 │   ├── forms/        # PassageSelector
 │   ├── layout/       # Header, DraggableColumn
+│   ├── settings/
+│   │   └── ApiKeySettings.tsx  # API key configuration modal
 │   ├── study/        # PassageDisplay, StudyGuide, StudyFlowEditor, QuestionCard
 │   │   ├── EditableStudyGuide.tsx  # Full editable study component
-│   │   ├── EditableQuestionCard.tsx # Sortable question with CRUD
+│   │   ├── EditableQuestionCard.tsx # Sortable question with CRUD + AI enhance
 │   │   ├── SortableQuestionList.tsx # Drag-drop question reordering
 │   │   ├── EditableThemeList.tsx   # Theme badge management
 │   │   ├── EditableCrossReferences.tsx # Cross-reference CRUD
@@ -93,8 +100,9 @@ frontend/src/
 │   └── index.ts      # Dexie database (v2 schema)
 ├── hooks/
 │   ├── useHistory.ts       # History CRUD + import/export
-│   ├── useStudyGeneration.ts
+│   ├── useStudyGeneration.ts # Hybrid client/server generation
 │   ├── useEditableStudy.ts # Full CRUD for editable study state
+│   ├── useApiKeys.ts       # API key storage in IndexedDB
 │   ├── useBeforeUnload.ts  # Warn on unsaved changes
 │   └── useDarkMode.ts
 ├── pages/
@@ -104,7 +112,10 @@ frontend/src/
 │   └── index.ts       # TypeScript interfaces
 └── utils/
     ├── bibleData.ts   # Book/chapter/verse validation
-    └── validation.ts  # Zod schemas for import validation
+    ├── validation.ts  # Zod schemas for import validation
+    ├── studyPrompt.ts # TypeScript port of study prompt
+    ├── blankStudy.ts  # Create blank study templates
+    └── wordExport.ts  # Export studies to Word documents
 ```
 
 ### Key Components
@@ -116,14 +127,24 @@ frontend/src/
   - Study Guide (fully editable questions and answers)
 - Column order persisted to Dexie userPreferences
 - Discernment disclaimer at top
+- **History viewing**: Uses `useSearchParams` to load studies from `?ref=` URL param
+- **New Blank Study**: "New Blank Study" button opens modal to create manual study
 - **Save bar** with:
+  - Export to Word button
   - Unsaved changes indicator (amber)
   - Validation error indicator (red)
   - Saved to history indicator (green)
+  - Provider badge (shows which LLM generated the study)
   - Discard button (reset to original)
   - Save Study button (manual save)
 - **Keyboard shortcuts**: Ctrl+S to save
 - **Before unload warning** when unsaved changes exist
+- **Dev logging**: Console logs show provider for generated/loaded studies
+
+**Header.tsx**
+- Settings icon (gear) opens API key configuration modal
+- Dark mode toggle
+- History navigation
 
 **StudyFlowEditor.tsx**
 - Displays study sections with expandable details
@@ -142,6 +163,7 @@ frontend/src/
 **EditableQuestionCard.tsx**
 - Drag handle for reordering within section
 - Delete button (trash icon)
+- **AI Enhance button** (sparkles icon) - requires OpenRouter API key
 - Question type dropdown (Observation/Interpretation/Feeling/Application)
 - Click to edit question/answer inline
 - Debounced save (500ms)
@@ -287,6 +309,42 @@ discardChanges()  // Reset to original
 8. **Doctrinal guardrails**: Reformed theology embedded in prompt (Trinity, TULIP, etc.)
 9. **Flow-based generation**: Users can define section purposes for custom question generation
 10. **Fun generate button**: Animated gradient button with sparkles icon
+11. **Hybrid client/server generation**: When user provides API keys, generates studies client-side; falls back to backend otherwise
+12. **Client-side AI enhance**: Individual questions can be enhanced using OpenRouter directly from browser
+
+## Client-Side Architecture
+
+**API Key Settings** (`ApiKeySettings.tsx`, `useApiKeys.ts`)
+- Users can configure their own API keys in browser settings (gear icon in header)
+- Keys stored in IndexedDB `userPreferences` table - never sent to backend
+- Required keys for client-side generation:
+  - ESV API key (for passage text)
+  - OpenRouter API key (for LLM calls - CORS-enabled, free tier available)
+- Optional backend proxy keys: Groq, Gemini, Anthropic
+
+**Client-Side Generation** (`llmClient.ts`, `useStudyGeneration.ts`)
+- When both ESV and OpenRouter keys are configured:
+  - Fetches passage directly from ESV API
+  - Generates study via OpenRouter API (direct CORS call)
+  - No backend required - works completely offline with API keys
+- Falls back to backend when keys not configured
+- Provider badge shows "openrouter (client)" for client-side generation
+
+**AI Enhancement** (`enhanceClient.ts`, `EditableQuestionCard.tsx`)
+- Hover over any question to reveal sparkles button
+- Sends question + passage context to OpenRouter for enhancement
+- Updates question and answer in place
+- Only available when OpenRouter API key is configured
+
+**Word Export** (`wordExport.ts`)
+- Client-side Word document generation using `docx` library
+- Formats study with sections: Purpose, Context, Themes, Study Sections, Summary, Application, Cross-References, Prayer
+- Downloads .docx file directly to user's computer
+
+**Blank Study** (`blankStudy.ts`)
+- "New Blank Study" button creates empty study template
+- User fills in reference, then manually adds all content
+- Useful for creating studies without AI assistance
 
 ## Testing Checklist
 
@@ -317,26 +375,65 @@ discardChanges()  // Reset to original
    - Ctrl+S keyboard shortcut works
    - Browser warns before leaving with unsaved changes
 
-5. **Import/Export**:
+5. **History Viewing**:
+   - Click "View" on history item
+   - Study loads correctly with all sections
+   - Provider badge shows in save bar
+   - Console shows `[Dev] Loading study from history`
+
+6. **Import/Export**:
    - Export creates valid JSON
    - Import validates structure
    - Import appends (doesn't replace)
    - Invalid JSON shows error messages
 
-6. **UI**:
+7. **UI**:
    - Generate button has gradient animation
    - Discernment disclaimer visible
    - Back button styled properly
    - History items have hover state
    - Card headers have proper padding (px-6 pt-6)
 
+8. **API Key Settings**:
+   - Click gear icon in header → modal opens
+   - Enter ESV API key and OpenRouter API key
+   - Click Save → keys persist
+   - Refresh page → keys still there
+   - Provider preference dropdown works
+
+9. **Client-Side Generation** (requires API keys):
+   - Configure ESV + OpenRouter keys
+   - Stop backend server
+   - Generate study → works with client-side calls
+   - Provider badge shows "openrouter (client)"
+   - Network tab shows calls to api.esv.org and openrouter.ai
+
+10. **AI Enhance** (requires OpenRouter key):
+   - Hover over question card → sparkles button appears
+   - Click sparkles → loading spinner
+   - Question/answer updated with improved content
+   - Console shows `[Dev] Question enhanced successfully`
+
+11. **New Blank Study**:
+   - Click "New Blank Study" button
+   - Enter passage reference → Create Study
+   - Empty study form appears
+   - Fill in Purpose and Context (required)
+   - Add questions and content manually
+   - Save to history
+
+12. **Word Export**:
+   - Generate or load a study
+   - Click "Export" button in save bar
+   - .docx file downloads
+   - Open in Word → formatting correct
+
 ## Prompt Engineering
 
 **services/prompts/study_prompt.py** contains:
-- `INTERWOVEN_STUDY_PROMPT` - Main prompt with doctrinal guardrails
-- `FLOW_CONTEXT_ADDON` - Additional instructions when user provides flow context
-- `format_study_prompt()` - Basic formatting
-- `format_study_prompt_with_flow()` - Format with optional user-defined purposes
+- `STUDY_PROMPT` - Unified prompt with doctrinal guardrails and optional flow context
+- `format_study_prompt(reference, passage_text, flow_context?)` - Single formatter function
+- `format_study_prompt_with_flow()` - Alias for backward compatibility
 
 Doctrinal guidelines enforce:
 - Scripture interprets Scripture

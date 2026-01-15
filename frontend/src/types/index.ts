@@ -191,6 +191,18 @@ export interface UserPreference {
   value: unknown;
 }
 
+// API Key settings for client-side LLM calls
+export type LLMProvider = 'openrouter' | 'groq' | 'gemini' | 'claude' | 'auto';
+
+export interface ApiKeySettings {
+  esvApiKey?: string;
+  openrouterApiKey?: string;
+  groqApiKey?: string;
+  geminiApiKey?: string;
+  anthropicApiKey?: string;
+  preferredProvider: LLMProvider;
+}
+
 // Edited study storage
 
 export interface EditedStudyRecord {

@@ -1,12 +1,14 @@
-"""
-Bible Study Prompt
+/**
+ * Study Prompt - TypeScript port of the Python study_prompt.py
+ *
+ * This prompt generates studies where observation and interpretation questions
+ * flow naturally through the passage, guiding readers section by section.
+ * Supports optional user-defined flow context for custom study generation.
+ */
 
-This prompt generates studies where observation and interpretation questions
-flow naturally through the passage, guiding readers section by section.
-Supports optional user-defined flow context for custom study generation.
-"""
+import type { StudyFlowContext } from '../types';
 
-STUDY_PROMPT = """You are an expert Bible study curriculum designer creating an in-depth expository study for personal use.
+export const STUDY_PROMPT = `You are an expert Bible study curriculum designer creating an in-depth expository study for personal use.
 
 Given the following Bible passage, create a comprehensive study guide that guides the reader through the text section by section, weaving observation and interpretation questions together naturally.
 
@@ -66,12 +68,12 @@ IMPORTANT INSTRUCTIONS:
    - Follow the exact structure below
 
 JSON STRUCTURE:
-{{
+{
     "purpose": "Single-sentence action-focused purpose starting with an action verb to dictate action/purpose. If passage is more based on truths/knowledge, the verb can just be to 'Know' or to 'Believe' ",
     "context": "2-3 sentences of historical, cultural, or literary background",
     "key_themes": ["theme1", "theme2", "theme3"],
     "study_flow": [
-        {{
+        {
             "passage_section": "Verse range (e.g., 'John 1:1-2')",
             "section_heading": "Brief descriptive heading",
             "observation_question": "What does the text literally say about...?",
@@ -79,7 +81,7 @@ JSON STRUCTURE:
             "interpretation_question": "What does this mean spiritually/theologically?",
             "interpretation_answer": "Complete interpretive answer connecting to broader meaning",
             "connection": "Optional: How this section connects to the next"
-        }}
+        }
     ],
     "summary": "2-3 sentences synthesizing the main themes and message",
     "application_questions": [
@@ -88,50 +90,46 @@ JSON STRUCTURE:
         "Personal reflection question 3 (no answer)"
     ],
     "cross_references": [
-        {{
+        {
             "reference": "Book Chapter:Verse",
             "note": "Brief explanation of how this illuminates the passage"
-        }}
+        }
     ],
     "prayer_prompt": "A focused prayer direction based on this passage (3-4 sentences)"
-}}
+}
 
-Respond ONLY with valid JSON."""
+Respond ONLY with valid JSON.`;
 
+/**
+ * Format the study prompt with the given reference, passage text, and optional flow context.
+ *
+ * @param reference - The passage reference (e.g., "John 1:1-18")
+ * @param passageText - The full text of the passage
+ * @param flowContext - Optional flow context with section purposes
+ * @returns Formatted prompt string
+ */
+export function formatStudyPrompt(
+  reference: string,
+  passageText: string,
+  flowContext?: StudyFlowContext
+): string {
+  let flowContextSection = '';
 
-def format_study_prompt(
-    reference: str,
-    passage_text: str,
-    flow_context: dict | None = None
-) -> str:
-    """
-    Format the study prompt with the given reference, passage text, and optional flow context.
+  if (flowContext?.sectionPurposes && flowContext.sectionPurposes.length > 0) {
+    const contextLines = flowContext.sectionPurposes.map((item) => {
+      let line = `- ${item.passageSection || 'Section'}: ${item.purpose || 'General study'}`;
+      if (item.focusAreas && item.focusAreas.length > 0) {
+        line += ` (Focus: ${item.focusAreas.join(', ')})`;
+      }
+      return line;
+    });
 
-    Args:
-        reference: The passage reference (e.g., "John 1:1-18")
-        passage_text: The full text of the passage
-        flow_context: Optional dict with 'sectionPurposes' list containing
-                      {passageSection, purpose, focusAreas} for each section
-
-    Returns:
-        Formatted prompt string
-    """
-    flow_context_section = ""
-
-    if flow_context and flow_context.get('sectionPurposes'):
-        context_lines = []
-        for item in flow_context['sectionPurposes']:
-            line = f"- {item.get('passageSection', 'Section')}: {item.get('purpose', 'General study')}"
-            if item.get('focusAreas'):
-                line += f" (Focus: {', '.join(item['focusAreas'])})"
-            context_lines.append(line)
-
-        flow_context_section = f"""
+    flowContextSection = `
 
 USER-DEFINED STUDY FLOW CONTEXT:
 The user has specified the following purposes/focuses for each section of this passage:
 
-{chr(10).join(context_lines)}
+${contextLines.join('\n')}
 
 Based on the above flow context, please:
 1. Structure your study_flow sections to align with these user-defined purposes
@@ -143,20 +141,16 @@ Based on the above flow context, please:
    - The text is meant to evoke an emotional or spiritual response (worship, awe, gratitude)
    - It naturally follows an interpretation of a moving truth
    - Do not force feeling questions - only include when genuinely appropriate
-"""
+`;
+  }
 
-    return STUDY_PROMPT.format(
-        reference=reference,
-        passage_text=passage_text,
-        flow_context_section=flow_context_section
-    )
+  return STUDY_PROMPT
+    .replace('{reference}', reference)
+    .replace('{passage_text}', passageText)
+    .replace('{flow_context_section}', flowContextSection);
+}
 
-
-# Backward compatibility alias
-def format_study_prompt_with_flow(
-    reference: str,
-    passage_text: str,
-    flow_context: dict | None = None
-) -> str:
-    """Alias for format_study_prompt for backward compatibility."""
-    return format_study_prompt(reference, passage_text, flow_context)
+/**
+ * Alias for formatStudyPrompt for backward compatibility with Python naming.
+ */
+export const formatStudyPromptWithFlow = formatStudyPrompt;

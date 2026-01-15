@@ -48,6 +48,7 @@ import type {
 interface EditableStudyGuideProps {
   study: EditableStudyFull;
   provider?: string;
+  passageContext?: string;  // For AI enhancement
   validationErrors?: { purpose?: string; context?: string };
 
   // Field updaters
@@ -85,6 +86,7 @@ interface EditableStudyGuideProps {
 export function EditableStudyGuide({
   study,
   provider,
+  passageContext,
   validationErrors = {},
   onUpdatePurpose,
   onUpdateContext,
@@ -277,6 +279,7 @@ export function EditableStudyGuide({
                           <SortableQuestionList
                             sectionId={section.id}
                             questions={section.questions}
+                            passageContext={passageContext}
                             onQuestionChange={(qId, question) =>
                               onUpdateQuestion(section.id, qId, { question })
                             }
@@ -364,6 +367,7 @@ export function EditableStudyGuide({
                   id={question.id}
                   type={question.type}
                   question={question.question}
+                  passageContext={passageContext}
                   onQuestionChange={(q) =>
                     onUpdateApplicationQuestion(question.id, { question: q })
                   }

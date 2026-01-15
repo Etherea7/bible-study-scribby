@@ -6,6 +6,7 @@
  * - Delete button
  * - Question type selector dropdown
  * - Inline editing for question and answer
+ * - AI enhancement button (requires OpenRouter API key)
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -19,16 +20,20 @@ import {
   Smile,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  Loader2,
 } from 'lucide-react';
 import type { EditableQuestionType } from '../../types';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { enhanceQuestion, isEnhanceAvailable } from '../../api/enhanceClient';
 
 interface EditableQuestionCardProps {
   id: string;
   type: EditableQuestionType;
   question: string;
   answer?: string;
+  passageContext?: string;
   onQuestionChange: (question: string) => void;
   onAnswerChange?: (answer: string) => void;
   onTypeChange: (type: EditableQuestionType) => void;
@@ -76,6 +81,7 @@ export function EditableQuestionCard({
   type,
   question,
   answer,
+  passageContext,
   onQuestionChange,
   onAnswerChange,
   onTypeChange,
@@ -88,6 +94,13 @@ export function EditableQuestionCard({
   const [localAnswer, setLocalAnswer] = useState(answer || '');
   const [showAnswer, setShowAnswer] = useState(initialShowAnswer);
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [canEnhance, setCanEnhance] = useState(false);
+
+  // Check if enhance is available on mount
+  useEffect(() => {
+    isEnhanceAvailable().then(setCanEnhance);
+  }, []);
 
   const questionRef = useRef<HTMLTextAreaElement>(null);
   const answerRef = useRef<HTMLTextAreaElement>(null);
@@ -174,6 +187,38 @@ export function EditableQuestionCard({
     }
   };
 
+  const handleEnhance = async () => {
+    if (!passageContext || isEnhancing) return;
+
+    setIsEnhancing(true);
+    try {
+      const result = await enhanceQuestion(
+        localQuestion,
+        localAnswer || undefined,
+        type,
+        passageContext
+      );
+
+      // Update local state immediately
+      setLocalQuestion(result.question);
+      if (result.answer) {
+        setLocalAnswer(result.answer);
+      }
+
+      // Trigger parent updates
+      onQuestionChange(result.question);
+      if (result.answer && onAnswerChange) {
+        onAnswerChange(result.answer);
+      }
+
+      console.log('[Dev] Question enhanced successfully');
+    } catch (error) {
+      console.error('[Dev] Failed to enhance question:', error);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -202,22 +247,45 @@ export function EditableQuestionCard({
         <GripVertical className="h-3 w-3 text-[var(--text-muted)]" />
       </button>
 
-      {/* Delete Button */}
-      <button
-        onClick={onDelete}
-        className="
-          absolute -right-2 top-2
-          opacity-0 group-hover:opacity-100
-          transition-opacity duration-200
-          p-1 rounded
-          bg-red-50 border border-red-200
-          hover:bg-red-100
-          text-red-500
-        "
-        aria-label="Delete question"
-      >
-        <Trash2 className="h-3 w-3" />
-      </button>
+      {/* Action Buttons */}
+      <div className="absolute -right-2 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        {/* Enhance Button */}
+        {canEnhance && passageContext && (
+          <button
+            onClick={handleEnhance}
+            disabled={isEnhancing}
+            className="
+              p-1 rounded
+              bg-purple-50 border border-purple-200
+              hover:bg-purple-100
+              text-purple-500
+              disabled:opacity-50 disabled:cursor-not-allowed
+            "
+            aria-label="Enhance with AI"
+            title="Enhance with AI"
+          >
+            {isEnhancing ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Sparkles className="h-3 w-3" />
+            )}
+          </button>
+        )}
+
+        {/* Delete Button */}
+        <button
+          onClick={onDelete}
+          className="
+            p-1 rounded
+            bg-red-50 border border-red-200
+            hover:bg-red-100
+            text-red-500
+          "
+          aria-label="Delete question"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
 
       {/* Type Badge with Dropdown */}
       <div className="flex items-center gap-2 relative">

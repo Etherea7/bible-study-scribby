@@ -105,10 +105,13 @@ interface UseEditableStudyResult {
   // Section management
   updateSectionHeading: (sectionId: string, heading: string) => void;
   updateSectionConnection: (sectionId: string, connection: string) => void;
+  addSection: (passageSection: string, heading: string) => void;
+  removeSection: (sectionId: string) => void;
 
   // Actions
   saveToHistory: (reference: string, passageText: string, provider: string) => Promise<void>;
   discardChanges: () => void;
+  setBlankStudy: (blankStudy: EditableStudyFull) => void;
 }
 
 export function useEditableStudy(
@@ -415,6 +418,45 @@ export function useEditableStudy(
     });
   }, []);
 
+  const addSection = useCallback((passageSection: string, heading: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        study_flow: [
+          ...prev.study_flow,
+          {
+            id: generateId(),
+            passage_section: passageSection,
+            section_heading: heading,
+            questions: [],
+            connection: '',
+          },
+        ],
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  const removeSection = useCallback((sectionId: string) => {
+    setStudy((prev) => {
+      if (!prev || prev.study_flow.length <= 1) return prev; // Keep at least one section
+      return {
+        ...prev,
+        study_flow: prev.study_flow.filter((section) => section.id !== sectionId),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
+  // Set a blank study directly (for manual study creation)
+  const setBlankStudy = useCallback((blankStudy: EditableStudyFull) => {
+    setStudy(blankStudy);
+    setOriginalStudy(null); // No original to revert to
+  }, []);
+
   // Save to history
   const saveToHistory = useCallback(
     async (reference: string, _passageText: string, provider: string) => {
@@ -481,7 +523,10 @@ export function useEditableStudy(
     removeCrossReference,
     updateSectionHeading,
     updateSectionConnection,
+    addSection,
+    removeSection,
     saveToHistory,
     discardChanges,
+    setBlankStudy,
   };
 }

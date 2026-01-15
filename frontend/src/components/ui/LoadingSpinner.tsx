@@ -30,14 +30,16 @@ export function LoadingOverlay({ message = 'Generating study guide...' }: Loadin
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-main)]/80 backdrop-blur-sm">
       <div className="card-premium p-8 flex flex-col items-center gap-5 max-w-sm mx-4">
-        <div className="relative">
+        <div className="relative w-16 h-16">
           <div className="absolute inset-0 animate-pulse-subtle">
             <div className="w-16 h-16 rounded-full bg-[var(--color-observation)]/10" />
           </div>
-          <div className="relative w-16 h-16 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center justify-center">
             <BookOpen className="h-7 w-7 text-[var(--color-observation)] animate-pulse-subtle" />
           </div>
-          <LoadingSpinner size="lg" className="absolute inset-0" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <LoadingSpinner size="lg" />
+          </div>
         </div>
         <div className="text-center">
           <p className="text-[var(--text-primary)] font-medium font-serif">{message}</p>

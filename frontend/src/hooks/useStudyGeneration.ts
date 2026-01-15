@@ -1,5 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { generateStudy as apiGenerateStudy } from '../api/studyApi';
+import { callOpenRouter, fetchPassage, buildReference } from '../api/llmClient';
+import { getApiKeys } from './useApiKeys';
+import { formatStudyPrompt } from '../utils/studyPrompt';
 import {
   getCachedStudy,
   getCachedPassage,
@@ -34,7 +37,7 @@ export function useStudyGeneration() {
       const cachedPassage = await getCachedPassage(reference);
 
       if (cachedStudy && cachedPassage) {
-        console.log('Loading from cache:', reference);
+        console.log('[Dev] Loading from cache:', reference);
         return {
           reference,
           passage_text: cachedPassage.text,
@@ -44,9 +47,42 @@ export function useStudyGeneration() {
         };
       }
 
-      // Call API
-      console.log('Fetching from API:', reference);
-      const response = await apiGenerateStudy(params);
+      // Check for user API keys for client-side generation
+      const apiKeys = await getApiKeys();
+      const canUseClientSide = Boolean(apiKeys.esvApiKey && apiKeys.openrouterApiKey);
+
+      let response: GenerateStudyResponse;
+
+      if (canUseClientSide) {
+        // Client-side generation using user's API keys
+        console.log('[Dev] Using client-side generation with user API keys');
+
+        // Build reference for ESV API
+        const esvReference = buildReference(
+          params.book,
+          params.chapter,
+          params.start_verse,
+          params.end_verse
+        );
+
+        // Fetch passage from ESV API
+        const passageText = await fetchPassage(esvReference, apiKeys.esvApiKey!);
+
+        // Format the prompt and call OpenRouter
+        const prompt = formatStudyPrompt(reference, passageText);
+        const study = await callOpenRouter(prompt, apiKeys.openrouterApiKey!);
+
+        response = {
+          reference,
+          passage_text: passageText,
+          study,
+          provider: 'openrouter (client)',
+        };
+      } else {
+        // Fallback to backend API
+        console.log('[Dev] Fetching from backend API:', reference);
+        response = await apiGenerateStudy(params);
+      }
 
       // Cache results
       await cachePassage(response.reference, response.passage_text);
