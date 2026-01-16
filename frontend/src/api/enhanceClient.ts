@@ -142,6 +142,62 @@ Return ONLY valid JSON in this exact format:
 }
 
 /**
+ * Rephrase selected text for clarity or different tone.
+ *
+ * @param text - The selected text to rephrase
+ * @param context - Surrounding context (optional)
+ * @returns Rephrased text
+ */
+export async function rephraseText(
+  text: string,
+  context?: string
+): Promise<string> {
+  const keys = await getApiKeys();
+
+  if (!keys.openrouterApiKey) {
+    throw new LLMError('OpenRouter API key not configured', 'openrouter');
+  }
+
+  const prompt = `You are an expert Bible study curriculum writer. Rephrase the following text to be clearer, more engaging, and theologically precise while maintaining the same meaning.
+
+${context ? `CONTEXT:\n${context}\n\n` : ''}TEXT TO REPHRASE:
+${text}
+
+Return ONLY the rephrased text, no quotes or explanation.`;
+
+  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
+  return typeof response === 'string' ? response.trim() : text;
+}
+
+/**
+ * Shorten selected text while preserving key meaning.
+ *
+ * @param text - The selected text to shorten
+ * @param context - Surrounding context (optional)
+ * @returns Shortened text
+ */
+export async function shortenText(
+  text: string,
+  context?: string
+): Promise<string> {
+  const keys = await getApiKeys();
+
+  if (!keys.openrouterApiKey) {
+    throw new LLMError('OpenRouter API key not configured', 'openrouter');
+  }
+
+  const prompt = `You are an expert Bible study curriculum writer. Shorten the following text to be more concise while preserving the essential meaning and theological accuracy.
+
+${context ? `CONTEXT:\n${context}\n\n` : ''}TEXT TO SHORTEN:
+${text}
+
+Return ONLY the shortened text, no quotes or explanation. Aim for roughly 50-70% of the original length.`;
+
+  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
+  return typeof response === 'string' ? response.trim() : text;
+}
+
+/**
  * Get type-specific guidance for question enhancement
  */
 function getTypeGuidance(type: EditableQuestionType): string {

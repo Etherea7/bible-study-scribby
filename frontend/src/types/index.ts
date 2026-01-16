@@ -211,3 +211,22 @@ export interface EditedStudyRecord {
   study: EditableStudy;
   lastModified: Date;
 }
+
+// Saved study storage (user-saved studies for export)
+
+export interface SavedStudyRecord {
+  id: string;
+  reference: string;
+  passageText: string;
+  study: EditableStudyFull;
+  provider?: string;
+  savedAt: Date;
+}
+
+// Saved studies export format
+
+export interface SavedStudiesExport {
+  exportedAt: string;
+  version: string;
+  savedStudies: SavedStudyRecord[];
+}

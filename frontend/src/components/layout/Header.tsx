@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Moon, Sun, History, BookOpen, Settings } from 'lucide-react';
+import { Moon, Sun, History, BookOpen, Settings, BookMarked } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { ApiKeySettings } from '../settings/ApiKeySettings';
@@ -15,8 +15,12 @@ export function Header() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-3 group">
-            <div className="p-2 rounded-lg bg-[var(--color-observation)]/10 group-hover:bg-[var(--color-observation)]/20 transition-colors">
-              <BookOpen className="h-5 w-5 text-[var(--color-observation)]" />
+            <div className="flex-shrink-0">
+              <img
+                src="/scribby-logo.png"
+                alt="Scribby Mascot"
+                className="h-10 w-auto object-contain drop-shadow-sm hover:scale-110 transition-transform duration-200"
+              />
             </div>
             <div className="flex flex-col">
               <span className="text-lg font-bold text-[var(--text-primary)] font-serif tracking-tight">
@@ -30,6 +34,13 @@ export function Header() {
 
           {/* Navigation */}
           <nav className="flex items-center gap-1">
+            <Link to="/saved">
+              <Button variant="ghost" size="sm">
+                <BookMarked className="h-4 w-4 mr-1.5" />
+                Saved
+              </Button>
+            </Link>
+
             <Link to="/history">
               <Button variant="ghost" size="sm">
                 <History className="h-4 w-4 mr-1.5" />

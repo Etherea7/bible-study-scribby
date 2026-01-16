@@ -44,3 +44,25 @@ export async function getProviders(): Promise<ProvidersResponse> {
 
   return response.json();
 }
+
+/**
+ * Fetch Bible passage text from server ESV API
+ * Used when user doesn't have their own ESV API key configured
+ */
+export async function fetchPassageFromServer(reference: string): Promise<string> {
+  const response = await fetch(`${API_BASE}/passage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ reference }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+    throw new Error(error.error || `HTTP error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.passage_text;
+}

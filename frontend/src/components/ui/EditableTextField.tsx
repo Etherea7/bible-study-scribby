@@ -6,11 +6,14 @@
  * - Textarea for multiline, input for single line
  * - Required field validation
  * - Native keyboard shortcuts (Ctrl+Z/C/X/V work automatically)
+ * - AI FloatingToolbar for text selection (rephrase/shorten)
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { clsx } from 'clsx';
 import { Edit2 } from 'lucide-react';
+import { FloatingToolbar } from './FloatingToolbar';
+import { isEnhanceAvailable } from '../../api/enhanceClient';
 
 interface EditableTextFieldProps {
   value: string;
@@ -22,6 +25,8 @@ interface EditableTextFieldProps {
   className?: string;
   displayClassName?: string;
   label?: string;
+  enableAiToolbar?: boolean;  // Enable FloatingToolbar for AI text enhancement
+  context?: string;           // Context for AI enhancement (e.g., passage text)
 }
 
 export function EditableTextField({
@@ -34,10 +39,28 @@ export function EditableTextField({
   className,
   displayClassName,
   label,
+  enableAiToolbar = false,
+  context,
 }: EditableTextFieldProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+
+  // AI Toolbar state
+  const [selection, setSelection] = useState<{
+    text: string;
+    start: number;
+    end: number;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [aiAvailable, setAiAvailable] = useState(false);
+
+  // Check AI availability on mount
+  useEffect(() => {
+    if (enableAiToolbar) {
+      isEnhanceAvailable().then(setAiAvailable);
+    }
+  }, [enableAiToolbar]);
 
   // Sync local value with prop
   useEffect(() => {
@@ -52,21 +75,68 @@ export function EditableTextField({
     }
   }, [isEditing]);
 
+  // Handle text selection for AI toolbar
+  const handleSelectionChange = useCallback(() => {
+    if (!enableAiToolbar || !aiAvailable || !inputRef.current) return;
+
+    const el = inputRef.current;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const selectedText = localValue.substring(start, end);
+
+    // Only show toolbar for non-trivial selections (at least 10 chars)
+    if (selectedText.trim().length >= 10) {
+      // Get position for toolbar
+      const rect = el.getBoundingClientRect();
+      setSelection({
+        text: selectedText,
+        start,
+        end,
+        position: {
+          x: rect.left + rect.width / 2,
+          y: rect.bottom + 8,
+        },
+      });
+    } else {
+      setSelection(null);
+    }
+  }, [enableAiToolbar, aiAvailable, localValue]);
+
+  // Handle AI text replacement
+  const handleAiReplace = useCallback((newText: string) => {
+    if (!selection) return;
+
+    // Replace the selected text with the AI result
+    const before = localValue.substring(0, selection.start);
+    const after = localValue.substring(selection.end);
+    const newValue = before + newText + after;
+
+    setLocalValue(newValue);
+    onChange(newValue);
+    setSelection(null);
+  }, [selection, localValue, onChange]);
+
   const handleClick = () => {
     setIsEditing(true);
   };
 
   const handleBlur = () => {
-    setIsEditing(false);
-    if (localValue !== value) {
-      onChange(localValue);
-    }
+    // Delay blur to allow toolbar click
+    setTimeout(() => {
+      if (!selection) {
+        setIsEditing(false);
+        if (localValue !== value) {
+          onChange(localValue);
+        }
+      }
+    }, 100);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
       setIsEditing(false);
       setLocalValue(value);
+      setSelection(null);
     }
     // For single-line, Enter saves
     if (!multiline && e.key === 'Enter') {
@@ -74,6 +144,11 @@ export function EditableTextField({
       handleBlur();
     }
   };
+
+  // Clear selection when clicking elsewhere
+  const handleCloseToolbar = useCallback(() => {
+    setSelection(null);
+  }, []);
 
   const showError = required && !localValue.trim();
 
@@ -85,6 +160,8 @@ export function EditableTextField({
         setLocalValue(e.target.value),
       onBlur: handleBlur,
       onKeyDown: handleKeyDown,
+      onSelect: handleSelectionChange,
+      onMouseUp: handleSelectionChange,
       placeholder,
       className: clsx(
         'w-full bg-transparent border-b-2 focus:outline-none transition-colors',
@@ -110,6 +187,17 @@ export function EditableTextField({
         )}
         {showError && (
           <p className="text-red-500 text-xs mt-1">{error || 'This field is required'}</p>
+        )}
+
+        {/* AI Floating Toolbar */}
+        {selection && enableAiToolbar && (
+          <FloatingToolbar
+            selectedText={selection.text}
+            position={selection.position}
+            context={context}
+            onReplace={handleAiReplace}
+            onClose={handleCloseToolbar}
+          />
         )}
       </div>
     );

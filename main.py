@@ -129,6 +129,24 @@ async def get_providers():
     return {"providers": status}
 
 
+class FetchPassageRequest(BaseModel):
+    reference: str
+
+
+@app.post("/api/passage")
+async def fetch_passage_endpoint(req: FetchPassageRequest):
+    """Fetch Bible passage text from ESV API (for blank study creation)."""
+    try:
+        passage_text = await fetch_passage(req.reference)
+        return {"passage_text": passage_text}
+    except Exception as e:
+        logger.error(f"Error fetching passage: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": str(e)}
+        )
+
+
 if __name__ == "__main__":
     import uvicorn
 

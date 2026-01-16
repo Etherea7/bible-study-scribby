@@ -105,6 +105,7 @@ interface UseEditableStudyResult {
   // Section management
   updateSectionHeading: (sectionId: string, heading: string) => void;
   updateSectionConnection: (sectionId: string, connection: string) => void;
+  updateSectionPassage: (sectionId: string, passage: string) => void;
   addSection: (passageSection: string, heading: string) => void;
   removeSection: (sectionId: string) => void;
 
@@ -112,6 +113,7 @@ interface UseEditableStudyResult {
   saveToHistory: (reference: string, passageText: string, provider: string) => Promise<void>;
   discardChanges: () => void;
   setBlankStudy: (blankStudy: EditableStudyFull) => void;
+  markAsSaved: () => void;
 }
 
 export function useEditableStudy(
@@ -418,6 +420,20 @@ export function useEditableStudy(
     });
   }, []);
 
+  const updateSectionPassage = useCallback((sectionId: string, passage: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        study_flow: prev.study_flow.map((section) =>
+          section.id === sectionId ? { ...section, passage_section: passage } : section
+        ),
+        isEdited: true,
+        lastModified: new Date(),
+      };
+    });
+  }, []);
+
   const addSection = useCallback((passageSection: string, heading: string) => {
     setStudy((prev) => {
       if (!prev) return null;
@@ -455,6 +471,14 @@ export function useEditableStudy(
   const setBlankStudy = useCallback((blankStudy: EditableStudyFull) => {
     setStudy(blankStudy);
     setOriginalStudy(null); // No original to revert to
+  }, []);
+
+  // Mark the current study as saved (used when saving to savedStudies)
+  const markAsSaved = useCallback(() => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return { ...prev, isSaved: true, isEdited: false };
+    });
   }, []);
 
   // Save to history
@@ -523,10 +547,12 @@ export function useEditableStudy(
     removeCrossReference,
     updateSectionHeading,
     updateSectionConnection,
+    updateSectionPassage,
     addSection,
     removeSection,
     saveToHistory,
     discardChanges,
     setBlankStudy,
+    markAsSaved,
   };
 }

@@ -1,22 +1,2 @@
-## Completed
-
-### Phase 0+1 (Bug Fixes & Polish)
-- [x] ~~Loading Bar is not UI is not aligned.~~ Fixed in LoadingSpinner.tsx
-- [x] ~~Add Dev logs, to see which API is being used~~ Added provider badge and console logs
-- [x] ~~Viewing the studies from history still doesnt work.~~ Fixed with useSearchParams in HomePage
-- [x] ~~Import feature with validation~~ Added Zod validation for JSON imports
-
-### Phase 2 (Client-Side Architecture)
-- [x] ~~Allow users to key in their own API key, this data will persist in their browser~~ API key settings modal in Header
-- [x] ~~Make everything Client side so it's not necessary to have load balancing~~ OpenRouter direct calls from browser when API keys configured
-
-### Phase 3 (New Features)
-- [x] ~~Add ability to create/edit study without AI~~ "New Blank Study" button on home page
-- [x] ~~Add ability to parse the JSON studies into a template for a word doc~~ "Export" button generates .docx file
-- [x] ~~API Endpoints for additional functions such as to enhance/modify~~ AI enhance button on question cards (sparkles icon, client-side only)
-
-## Future Enhancements
-- Add more LLM provider options via backend proxy (Groq, Gemini, Claude)
-- Enhanced Word export templates with more formatting options
-- Regenerate entire sections with AI
-- Share studies via URL
+## Debugs
+1. Test the Export/Import functionality. For the JSON -> What counts as a valid JSON is if it has no invalid keys. So it can contain none, some, or all of the keys that are currently being used to populate the study guide with AI generation or not. When you export, it would be better to have all the keys available as well but with empty fields, so when you import they would appear. (I think? Not sure how it works but do help to think of a good way to handle this  )

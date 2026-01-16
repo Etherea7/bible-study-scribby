@@ -35,10 +35,19 @@ export class LLMError extends Error {
  *
  * @param prompt - The full prompt to send to the LLM
  * @param apiKey - The user's OpenRouter API key
- * @returns Parsed Study object from the LLM response
+ * @param rawText - If true, return raw text instead of parsing as JSON
+ * @returns Parsed Study object or raw text from the LLM response
  */
-export async function callOpenRouter(prompt: string, apiKey: string): Promise<Study> {
+export async function callOpenRouter(
+  prompt: string,
+  apiKey: string,
+  rawText: boolean = false
+): Promise<Study | string> {
   console.log('[Dev] Calling OpenRouter directly from browser');
+
+  const systemContent = rawText
+    ? 'You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown.'
+    : 'You are an expert Bible study curriculum designer. Respond with valid JSON only.';
 
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
@@ -53,8 +62,7 @@ export async function callOpenRouter(prompt: string, apiKey: string): Promise<St
       messages: [
         {
           role: 'system',
-          content:
-            'You are an expert Bible study curriculum designer. Respond with valid JSON only.',
+          content: systemContent,
         },
         {
           role: 'user',
@@ -62,7 +70,7 @@ export async function callOpenRouter(prompt: string, apiKey: string): Promise<St
         },
       ],
       temperature: 0.6,
-      max_tokens: 3000,
+      max_tokens: rawText ? 1000 : 3000,
     }),
   });
 
@@ -83,6 +91,12 @@ export async function callOpenRouter(prompt: string, apiKey: string): Promise<St
   }
 
   const content = data.choices[0].message.content;
+
+  // Return raw text if requested
+  if (rawText) {
+    console.log('[Dev] OpenRouter raw text response received');
+    return content.trim();
+  }
 
   // Try to parse the JSON response
   try {

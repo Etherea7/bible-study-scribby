@@ -45,6 +45,7 @@ cd frontend && npm run dev
   - `GET /` - Health check / default study
   - `POST /api/generate` - Generate study for verse range (returns JSON)
   - `GET /api/providers` - Check available LLM provider status
+  - `POST /api/passage` - Fetch passage text from server's ESV API (for blank study creation when user lacks API key)
 
 **services/llm_router.py**
 - Multi-provider LLM orchestration with automatic fallback:
@@ -80,9 +81,9 @@ cd frontend && npm run dev
 ```
 frontend/src/
 ├── api/
-│   ├── studyApi.ts        # Backend API calls
+│   ├── studyApi.ts        # Backend API calls (generateStudy, getProviders, fetchPassageFromServer)
 │   ├── llmClient.ts       # Direct OpenRouter/ESV API calls (client-side)
-│   └── enhanceClient.ts   # AI enhancement functions
+│   └── enhanceClient.ts   # AI enhancement functions (rephrase, shorten, enhance)
 ├── components/
 │   ├── forms/        # PassageSelector
 │   ├── layout/       # Header, DraggableColumn
@@ -95,18 +96,20 @@ frontend/src/
 │   │   ├── EditableThemeList.tsx   # Theme badge management
 │   │   ├── EditableCrossReferences.tsx # Cross-reference CRUD
 │   │   └── AddQuestionButton.tsx   # Add O/I/F/A questions
-│   └── ui/           # Button, Card, LoadingSpinner, EditableTextField
+│   └── ui/           # Button, Card, LoadingSpinner, EditableTextField, FloatingToolbar
 ├── db/
-│   └── index.ts      # Dexie database (v2 schema)
+│   └── index.ts      # Dexie database (v3 schema)
 ├── hooks/
 │   ├── useHistory.ts       # History CRUD + import/export
+│   ├── useSavedStudies.ts  # Saved studies CRUD + import/export
 │   ├── useStudyGeneration.ts # Hybrid client/server generation
 │   ├── useEditableStudy.ts # Full CRUD for editable study state
 │   ├── useApiKeys.ts       # API key storage in IndexedDB
 │   ├── useBeforeUnload.ts  # Warn on unsaved changes
 │   └── useDarkMode.ts
 ├── pages/
-│   ├── HomePage.tsx   # 3-column drag-drop layout with save bar
+│   ├── HomePage.tsx   # 3-column drag-drop layout with save bar at bottom
+│   ├── SavedPage.tsx  # Saved studies list with JSON import/export
 │   └── HistoryPage.tsx # History list with import/export
 ├── types/
 │   └── index.ts       # TypeScript interfaces
@@ -127,24 +130,25 @@ frontend/src/
   - Study Guide (fully editable questions and answers)
 - Column order persisted to Dexie userPreferences
 - Discernment disclaimer at top
-- **History viewing**: Uses `useSearchParams` to load studies from `?ref=` URL param
-- **New Blank Study**: "New Blank Study" button opens modal to create manual study
-- **Save bar** with:
+- **History/Saved viewing**: Uses `useSearchParams` to load studies from `?ref=` (history) or `?saved=` (saved studies) URL params
+- **New Blank Study**: "New Blank Study" button opens modal to create manual study with ESV passage fetching
+- **Provider badge**: Shows below columns (at bottom of column area, aligned right)
+- **Save bar** (positioned at bottom, after columns):
   - Export to Word button
   - Unsaved changes indicator (amber)
   - Validation error indicator (red)
-  - Saved to history indicator (green)
-  - Provider badge (shows which LLM generated the study)
+  - Saved indicator (green)
   - Discard button (reset to original)
-  - Save Study button (manual save)
+  - Save Study button (saves to Saved Studies, NOT History)
 - **Keyboard shortcuts**: Ctrl+S to save
 - **Before unload warning** when unsaved changes exist
 - **Dev logging**: Console logs show provider for generated/loaded studies
 
 **Header.tsx**
-- Settings icon (gear) opens API key configuration modal
+- Saved navigation link (to /saved)
+- History navigation link (to /history)
+- Settings icon (gear) opens API key configuration modal with disclaimer
 - Dark mode toggle
-- History navigation
 
 **StudyFlowEditor.tsx**
 - Displays study sections with expandable details
@@ -155,7 +159,9 @@ frontend/src/
 - Full editable study component replacing StudyGuide in edit mode
 - All fields editable: Purpose, Context, Summary, Prayer Prompt
 - Required field validation for Purpose and Context (cannot be empty)
+- **AI FloatingToolbar**: Select text (10+ chars) in Purpose/Context/Summary/Prayer fields to show rephrase/shorten options
 - EditableThemeList for theme badges (add/edit/remove)
+- **Section management**: Add/remove study flow sections, edit passage references and headings
 - SortableQuestionList per section (drag-drop reordering)
 - AddQuestionButton with type selector (O/I/F/A)
 - EditableCrossReferences for cross-reference CRUD
@@ -172,12 +178,20 @@ frontend/src/
 - Displays observation/interpretation/application questions
 - Collapsible sample answers
 
+**SavedPage.tsx** (route: /saved)
+- Lists all user-saved studies with full content
+- Each study shows reference, provider, saved date
+- "View" button loads study into HomePage (via `?saved=` param)
+- "Delete" button removes individual study
+- Import/Export JSON functionality (exports savedStudies array)
+- Clear all with confirmation
+
 **HistoryPage.tsx**
-- Lists all generated studies
+- Lists all generated studies (lightweight metadata only)
 - Import/Export JSON functionality with validation
 - Clear all with confirmation
 
-### Database Schema (Dexie v2)
+### Database Schema (Dexie v3)
 
 ```typescript
 // IndexedDB tables
@@ -186,6 +200,19 @@ cachedPassages: 'reference'                    // ESV API cache
 cachedStudies: 'reference'                     // LLM response cache
 editedStudies: 'id, reference, lastModified'  // User modifications
 userPreferences: 'key'                         // Settings (column order, etc.)
+savedStudies: 'id, reference, savedAt'        // User-saved studies with full content
+```
+
+**SavedStudyRecord** (for saved studies)
+```typescript
+interface SavedStudyRecord {
+  id: string;                    // UUID
+  reference: string;             // e.g., "John 1:1-18"
+  passageText: string;           // ESV passage text
+  study: EditableStudyFull;      // Full editable study content
+  provider?: string;             // Which LLM generated it
+  savedAt: Date;                 // When saved
+}
 ```
 
 ### Data Types
@@ -274,22 +301,50 @@ addApplicationQuestion, updateApplicationQuestion, removeApplicationQuestion
 addCrossReference, updateCrossReference, removeCrossReference
 
 // Section management
-updateSectionHeading, updateSectionConnection
+updateSectionHeading, updateSectionConnection, updateSectionPassage
+addSection(passageSection, heading)  // Add new study flow section
+removeSection(sectionId)             // Remove section (min 1 required)
 
 // Actions
-saveToHistory()   // Manual save (NOT auto-save)
+saveToHistory()   // Save to history (legacy)
+markAsSaved()     // Mark study as saved (for savedStudies flow)
 discardChanges()  // Reset to original
+setBlankStudy()   // Set a blank study template
 ```
 
-### Import/Export Format
+**useSavedStudies Hook** - CRUD for saved studies:
+```typescript
+// Queries
+useSavedStudies()    // List all saved studies
+useSavedStudy(id)    // Get single saved study
 
+// Mutations
+useSaveStudy()       // Save study to savedStudies table
+useDeleteSavedStudy() // Delete a saved study
+useClearSavedStudies() // Clear all saved studies
+useExportSavedStudies() // Export as JSON
+useImportSavedStudies() // Import from JSON
+```
+
+### Import/Export Formats
+
+**History Export** (HistoryPage)
 ```json
 {
-  "exportedAt": "2026-01-15T...",
+  "exportedAt": "2026-01-16T...",
   "version": "2.0",
   "history": [...],    // ReadingHistoryItem[]
   "passages": [...],   // CachedPassage[]
   "studies": [...]     // CachedStudy[]
+}
+```
+
+**Saved Studies Export** (SavedPage)
+```json
+{
+  "exportedAt": "2026-01-16T...",
+  "version": "1.0",
+  "savedStudies": [...]  // SavedStudyRecord[] with full study content
 }
 ```
 
@@ -302,21 +357,32 @@ discardChanges()  // Reset to original
    - Add/edit/remove questions (Observation/Interpretation/Feeling/Application)
    - Drag-drop reorder questions within sections
    - Edit all fields (Purpose, Context, Themes, Summary, Cross-References, Prayer)
+   - Add/remove study flow sections with passage references
    - Required field validation (Purpose, Context cannot be empty)
-5. **Manual save flow**: Studies NOT auto-saved to history - explicit Save button required
-6. **Unsaved changes protection**: Browser warning on navigation, Ctrl+S shortcut
-7. **JSON import/export**: Zod validation on import, append mode (no replace)
-8. **Doctrinal guardrails**: Reformed theology embedded in prompt (Trinity, TULIP, etc.)
-9. **Flow-based generation**: Users can define section purposes for custom question generation
-10. **Fun generate button**: Animated gradient button with sparkles icon
-11. **Hybrid client/server generation**: When user provides API keys, generates studies client-side; falls back to backend otherwise
-12. **Client-side AI enhance**: Individual questions can be enhanced using OpenRouter directly from browser
+5. **Saved vs History separation**:
+   - "Save Study" saves to Saved Studies (full content, for later editing)
+   - History tracks generation metadata only (lightweight)
+   - Saved studies have their own page (/saved) with JSON import/export
+6. **Manual save flow**: Studies NOT auto-saved - explicit Save button required
+7. **Unsaved changes protection**: Browser warning on navigation, Ctrl+S shortcut
+8. **JSON import/export**: Zod validation on import, append mode (no replace)
+9. **Doctrinal guardrails**: Reformed theology embedded in prompt (Trinity, TULIP, etc.)
+10. **Flow-based generation**: Users can define section purposes for custom question generation
+11. **Fun generate button**: Animated gradient button with sparkles icon
+12. **Hybrid client/server generation**: When user provides API keys, generates studies client-side; falls back to backend otherwise
+13. **Client-side AI enhance**: Individual questions can be enhanced using OpenRouter directly from browser
+14. **AI FloatingToolbar**: Select text in editable fields to rephrase/shorten via AI
+15. **Save bar at bottom**: Save controls positioned after content for better UX
+16. **Provider badge below columns**: Shows at column bottom for alignment
 
 ## Client-Side Architecture
 
 **API Key Settings** (`ApiKeySettings.tsx`, `useApiKeys.ts`)
 - Users can configure their own API keys in browser settings (gear icon in header)
+- **Disclaimer at top**: Explains why to configure keys (personal rate limits vs shared server key)
 - Keys stored in IndexedDB `userPreferences` table - never sent to backend
+- **Modal uses `createPortal`**: Renders to document.body for proper z-index stacking, avoiding issues with parent stacking contexts
+- Modal properly positioned with scroll and margin to prevent edge touching
 - Required keys for client-side generation:
   - ESV API key (for passage text)
   - OpenRouter API key (for LLM calls - CORS-enabled, free tier available)
@@ -330,11 +396,15 @@ discardChanges()  // Reset to original
 - Falls back to backend when keys not configured
 - Provider badge shows "openrouter (client)" for client-side generation
 
-**AI Enhancement** (`enhanceClient.ts`, `EditableQuestionCard.tsx`)
+**AI Enhancement** (`enhanceClient.ts`, `EditableQuestionCard.tsx`, `FloatingToolbar.tsx`)
 - Hover over any question to reveal sparkles button
 - Sends question + passage context to OpenRouter for enhancement
 - Updates question and answer in place
 - Only available when OpenRouter API key is configured
+- **FloatingToolbar**: Select text (10+ chars) in editable fields to access:
+  - Rephrase: Rewrite for clarity and engagement
+  - Shorten: Condense while preserving meaning
+  - Available in Purpose, Context, Summary, Prayer Prompt fields
 
 **Word Export** (`wordExport.ts`)
 - Client-side Word document generation using `docx` library
@@ -343,6 +413,10 @@ discardChanges()  // Reset to original
 
 **Blank Study** (`blankStudy.ts`)
 - "New Blank Study" button creates empty study template
+- Modal shows ESV API key status:
+  - Green: User has ESV API key configured (fetches via client-side)
+  - Blue: No key configured, will fetch via server's ESV API
+- **Passage text always fetched**: Either via user's ESV API key (client-side) or via backend `/api/passage` endpoint (server-side fallback)
 - User fills in reference, then manually adds all content
 - Useful for creating studies without AI assistance
 
@@ -368,63 +442,96 @@ discardChanges()  // Reset to original
    - Purpose and Context show validation error if empty
 
 4. **Manual Save Flow**:
+   - Save bar at bottom (after columns)
    - Save bar shows "Unsaved changes" (amber)
    - Save bar shows validation errors (red)
    - Discard button resets to original
-   - Save Study button saves to history
+   - Save Study button saves to Saved Studies (not History)
    - Ctrl+S keyboard shortcut works
    - Browser warns before leaving with unsaved changes
 
-5. **History Viewing**:
+5. **Saved Studies Page** (/saved):
+   - Navigate via "Saved" link in header
+   - Shows list of saved studies with reference, provider, date
+   - "View" button loads study into HomePage
+   - "Delete" button removes study with confirmation
+   - Export downloads JSON with savedStudies array
+   - Import appends studies from JSON file
+   - Clear All removes all with confirmation
+
+7. **History Viewing**:
    - Click "View" on history item
    - Study loads correctly with all sections
-   - Provider badge shows in save bar
+   - Provider badge shows below columns
    - Console shows `[Dev] Loading study from history`
 
-6. **Import/Export**:
-   - Export creates valid JSON
+8. **Import/Export**:
+   - History export creates valid JSON
+   - Saved studies export creates valid JSON
    - Import validates structure
    - Import appends (doesn't replace)
    - Invalid JSON shows error messages
 
-7. **UI**:
+9. **UI**:
    - Generate button has gradient animation
    - Discernment disclaimer visible
    - Back button styled properly
    - History items have hover state
    - Card headers have proper padding (px-6 pt-6)
+   - Provider badge at bottom of columns (aligned right)
 
-8. **API Key Settings**:
-   - Click gear icon in header → modal opens
+10. **API Key Settings**:
+   - Click gear icon in header → modal opens (via createPortal to document.body)
+   - Modal appears above all content (proper z-index stacking)
+   - Disclaimer visible at top ("Why Configure API Keys?")
    - Enter ESV API key and OpenRouter API key
+   - Modal scrollable and doesn't touch screen edges
    - Click Save → keys persist
    - Refresh page → keys still there
    - Provider preference dropdown works
 
-9. **Client-Side Generation** (requires API keys):
+11. **Client-Side Generation** (requires API keys):
    - Configure ESV + OpenRouter keys
    - Stop backend server
    - Generate study → works with client-side calls
    - Provider badge shows "openrouter (client)"
    - Network tab shows calls to api.esv.org and openrouter.ai
 
-10. **AI Enhance** (requires OpenRouter key):
+12. **AI Enhance** (requires OpenRouter key):
    - Hover over question card → sparkles button appears
    - Click sparkles → loading spinner
    - Question/answer updated with improved content
    - Console shows `[Dev] Question enhanced successfully`
 
-11. **New Blank Study**:
+13. **AI FloatingToolbar** (requires OpenRouter key):
+   - Edit a text field (Purpose, Context, Summary, or Prayer)
+   - Select at least 10 characters of text
+   - Floating toolbar appears with Rephrase/Shorten buttons
+   - Click Rephrase → loading spinner → text replaced
+   - Click Shorten → loading spinner → text condensed
+   - Click X or click elsewhere to dismiss toolbar
+
+14. **New Blank Study**:
    - Click "New Blank Study" button
+   - Shows ESV API key status (green if configured, blue if using server)
    - Enter passage reference → Create Study
-   - Empty study form appears
+   - Passage text ALWAYS fetched (via user's key or server fallback)
+   - Empty study form appears with passage text populated
    - Fill in Purpose and Context (required)
    - Add questions and content manually
-   - Save to history
+   - Add/remove study flow sections
+   - Save to Saved Studies
 
-12. **Word Export**:
+15. **Section Management**:
+   - Expand a study flow section
+   - Edit passage reference and section heading
+   - Click "Add Section" → enter passage and heading → section added
+   - Click trash icon on section → confirmation → section removed
+   - Cannot remove last section (minimum 1 required)
+
+16. **Word Export**:
    - Generate or load a study
-   - Click "Export" button in save bar
+   - Click "Export to Word" button in save bar
    - .docx file downloads
    - Open in Word → formatting correct
 

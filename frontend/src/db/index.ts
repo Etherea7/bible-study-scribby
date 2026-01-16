@@ -17,6 +17,9 @@ import type {
   UserPreference,
   ImportResult,
   ColumnId,
+  SavedStudyRecord,
+  EditableStudyFull,
+  SavedStudiesExport,
 } from '../types';
 
 class BibleStudyDB extends Dexie {
@@ -25,6 +28,7 @@ class BibleStudyDB extends Dexie {
   cachedStudies!: Table<CachedStudy>;
   editedStudies!: Table<EditedStudyRecord>;
   userPreferences!: Table<UserPreference>;
+  savedStudies!: Table<SavedStudyRecord>;
 
   constructor() {
     super('BibleStudyDB');
@@ -43,6 +47,16 @@ class BibleStudyDB extends Dexie {
       cachedStudies: 'reference',
       editedStudies: 'id, reference, lastModified',
       userPreferences: 'key',
+    });
+
+    // Version 3: Add savedStudies table for user-saved studies
+    this.version(3).stores({
+      readingHistory: '++id, reference, timestamp',
+      cachedPassages: 'reference',
+      cachedStudies: 'reference',
+      editedStudies: 'id, reference, lastModified',
+      userPreferences: 'key',
+      savedStudies: 'id, reference, savedAt',
     });
   }
 }
@@ -243,6 +257,127 @@ export async function getEditedStudy(reference: string): Promise<EditedStudyReco
  */
 export async function deleteEditedStudy(reference: string): Promise<void> {
   await db.editedStudies.where('reference').equals(reference).delete();
+}
+
+// Saved Studies (user-saved studies for export)
+
+/**
+ * Save a study to saved studies
+ */
+export async function saveToSavedStudies(
+  reference: string,
+  passageText: string,
+  study: EditableStudyFull,
+  provider?: string
+): Promise<string> {
+  const id = crypto.randomUUID();
+  await db.savedStudies.put({
+    id,
+    reference,
+    passageText,
+    study,
+    provider,
+    savedAt: new Date(),
+  });
+  return id;
+}
+
+/**
+ * Get all saved studies, newest first
+ */
+export async function getSavedStudies(): Promise<SavedStudyRecord[]> {
+  return await db.savedStudies
+    .orderBy('savedAt')
+    .reverse()
+    .toArray();
+}
+
+/**
+ * Get a saved study by ID
+ */
+export async function getSavedStudy(id: string): Promise<SavedStudyRecord | undefined> {
+  return await db.savedStudies.get(id);
+}
+
+/**
+ * Update a saved study
+ */
+export async function updateSavedStudy(record: SavedStudyRecord): Promise<void> {
+  await db.savedStudies.put(record);
+}
+
+/**
+ * Delete a saved study by ID
+ */
+export async function deleteSavedStudy(id: string): Promise<void> {
+  await db.savedStudies.delete(id);
+}
+
+/**
+ * Clear all saved studies
+ */
+export async function clearSavedStudies(): Promise<void> {
+  await db.savedStudies.clear();
+}
+
+/**
+ * Export saved studies as JSON
+ */
+export async function exportSavedStudies(): Promise<string> {
+  const savedStudies = await db.savedStudies.toArray();
+
+  const exportData: SavedStudiesExport = {
+    exportedAt: new Date().toISOString(),
+    version: '1.0',
+    savedStudies,
+  };
+
+  return JSON.stringify(exportData, null, 2);
+}
+
+/**
+ * Import saved studies from JSON
+ */
+export async function importSavedStudies(jsonString: string): Promise<{
+  success: boolean;
+  imported: number;
+  errors?: string[];
+}> {
+  try {
+    const data = JSON.parse(jsonString) as SavedStudiesExport;
+
+    if (!data.savedStudies || !Array.isArray(data.savedStudies)) {
+      return {
+        success: false,
+        imported: 0,
+        errors: ['Invalid format: missing savedStudies array'],
+      };
+    }
+
+    let importedCount = 0;
+    for (const record of data.savedStudies) {
+      // Check if already exists by ID
+      const existing = await db.savedStudies.get(record.id);
+      if (!existing) {
+        await db.savedStudies.put({
+          ...record,
+          savedAt: new Date(record.savedAt),
+        });
+        importedCount++;
+      }
+    }
+
+    return {
+      success: true,
+      imported: importedCount,
+    };
+  } catch (e) {
+    return {
+      success: false,
+      imported: 0,
+      errors: [`Import error: ${e instanceof Error ? e.message : 'Unknown error'}`],
+    };
+  }
 }
 
 // Import functionality

@@ -1,124 +1,222 @@
-# Bible Study Generator
+# Scribby - Bible Study Editor
 
-An AI-powered web application that generates in-depth expository Bible study guides for any passage. Built with FastAPI and Claude AI.
+A modern Bible study editor with AI-powered generation capabilities. Create, edit, and organize in-depth expository Bible studies with full control over every element. Generate comprehensive study guides with AI assistance, or craft them manually from scratch.
+
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1-38B2AC?logo=tailwindcss&logoColor=white)
+![License](https://img.shields.io/badge/License-Personal%20Use-blue)
 
 ## Features
 
-### Study Generation
-- **Verse-Range Selection**: Choose any book, chapter, and verse range for focused study
-- **Purpose Statement**: Single-sentence action-focused summary of the passage's main point
+### Study Editor
+- **Full CRUD Operations**: Add, edit, reorder, and delete questions, themes, cross-references, and more
+- **Drag-and-Drop**: Reorder questions within sections and rearrange the 3-column layout
+- **Inline Editing**: Click any field to edit - purpose, context, questions, answers, themes
+- **Question Types**: Observation, Interpretation, Feeling, and Application questions
+- **Manual Save**: Explicit save control with unsaved changes warning
+- **Validation**: Required field validation for Purpose and Context
+- **Keyboard Shortcuts**: Ctrl+S to save
+
+### AI-Powered Generation
+- **Multi-Provider Support**: Groq (free) → OpenRouter → Gemini → Claude with automatic fallback
+- **Client-Side Generation**: Use your own API keys for direct browser-to-API calls
+- **AI Enhancement**: Enhance individual questions with AI assistance
+- **Doctrinal Guardrails**: Reformed theological perspective built into prompts
+
+### Study Structure
+- **Purpose Statement**: Action-focused summary of the passage's main point
 - **Contextual Analysis**: Historical, cultural, and literary background
-- **Key Themes**: Core theological concepts identified in the passage
-- **Three Types of Questions**:
-  - **Observation**: "What does the text say?" with sample answers
-  - **Interpretation**: "What does it mean?" with sample answers
-  - **Application**: "How does it apply to your life?" (user reflects independently)
-- **Selective Cross-References**: Related passages that genuinely illuminate the text
-- **Prayer Focus**: Guided prayer direction based on the passage
+- **Key Themes**: Theological concepts with editable theme badges
+- **Study Flow**: Section-by-section breakdown with questions and sample answers
+- **Cross-References**: Related passages that illuminate the text
+- **Application Questions**: Personal reflection prompts
+- **Prayer Prompt**: Guided prayer direction
 
 ### User Experience
-- **Side-by-Side Layout**: Scripture stays visible while you study (desktop)
-- **Collapsible Sample Answers**: Encourages independent thinking before revealing
-- **Async Loading**: Smooth generation with loading indicator (no page reloads)
-- **Study History**: Track and revisit previously generated studies
-- **Smart Caching**: Instant loading for previously generated studies
-- **Mobile Responsive**: Works seamlessly on all devices
+- **3-Column Layout**: Scripture | Study Flow | Study Guide (drag to reorder)
+- **Dark Mode**: Toggle between light and dark themes
+- **History Management**: Track, revisit, and manage previously created studies
+- **Import/Export**: JSON format for backup and sharing
+- **Word Export**: Generate .docx documents for printing or sharing
+- **Offline-Capable**: Client-side IndexedDB storage via Dexie.js
+- **Mobile Responsive**: Works on all device sizes
 
 ## Quick Start
 
 ### Prerequisites
 - Python 3.8+
-- [ESV API Key](https://api.esv.org/) (free)
-- [Anthropic API Key](https://console.anthropic.com/) (paid)
+- Node.js 18+
+- API Keys (at least one of the following):
+  - [ESV API Key](https://api.esv.org/) (free) - Required for passage text
+  - [OpenRouter API Key](https://openrouter.ai/) (free tier available) - Recommended for client-side generation
+  - [Groq API Key](https://console.groq.com/) (free) - For server-side generation
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
+   git clone https://github.com/yourusername/daily-bible-study.git
    cd daily-bible-study
    ```
 
-2. **Install dependencies**
+2. **Install backend dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-3. **Configure API keys**
-
-   Create a `.env` file in the project root:
-   ```env
-   ESV_API_KEY=your_esv_api_key_here
-   ANTHROPIC_API_KEY=your_anthropic_api_key_here
+3. **Install frontend dependencies**
+   ```bash
+   cd frontend && npm install
    ```
 
-4. **Run the application**
+4. **Configure environment** (optional for server-side generation)
+   ```bash
+   cp .env.example .env
+   ```
+
+   Edit `.env` with your API keys:
+   ```env
+   ESV_API_KEY=your_esv_key
+   GROQ_API_KEY=your_groq_key
+   OPENROUTER_API_KEY=your_openrouter_key
+   GEMINI_API_KEY=your_gemini_key
+   ANTHROPIC_API_KEY=your_anthropic_key
+   ```
+
+5. **Run the application**
+
+   Terminal 1 - Backend:
    ```bash
    python main.py
+   # Or: uvicorn main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-5. **Open your browser**
+   Terminal 2 - Frontend:
+   ```bash
+   cd frontend && npm run dev
    ```
-   http://localhost:8000
-   ```
+
+6. **Open your browser**
+   - Frontend: http://localhost:5173
+   - Backend API: http://localhost:8000
+
+### Client-Side Configuration (Recommended)
+
+You can configure API keys directly in the browser for client-side generation:
+
+1. Click the **gear icon** in the header
+2. Enter your **ESV API key** and **OpenRouter API key**
+3. Click **Save**
+
+With client-side keys configured, studies are generated directly from your browser without requiring the backend server.
 
 ## Usage
 
-### Generate a Study
+### Generate a Study with AI
 
-1. Select a book from the dropdown (e.g., "John")
-2. Enter chapter number (e.g., "1")
-3. Enter verse range:
-   - Start verse: 1
-   - End verse: 18
-4. Click "Generate Study"
-5. Wait for AI to generate your study (cached studies load instantly)
+1. Select a book, chapter, and verse range from the dropdown
+2. Click **Generate Study** (animated button)
+3. Wait for AI to generate the study guide
+4. Edit any content as needed
+5. Click **Save Study** to save to history
 
-### Example Passages to Try
+### Create a Blank Study
 
-- **John 1:1-18** - The divinity and incarnation of Christ (pre-loaded default)
-- **Psalm 23** - The Lord as shepherd
-- **Romans 3:23-24** - Justification by faith
-- **Genesis 1:1-31** - Creation account
-- **Ephesians 2:8-10** - Salvation by grace
+1. Click **New Blank Study** button
+2. Enter a passage reference (e.g., "Romans 8:1-4")
+3. Fill in Purpose and Context (required fields)
+4. Add questions, themes, and content manually
+5. Save when complete
 
-### View History
+### Edit a Study
 
-Click "📖 View History" to see all previously generated studies and regenerate them with one click.
+- **Click any field** to edit inline
+- **Add questions** using the + button with type selector (O/I/F/A)
+- **Reorder questions** by dragging the handle
+- **Delete questions** with the trash icon
+- **Enhance with AI** using the sparkles icon (requires OpenRouter key)
+- **Edit themes** by clicking the badge or using +/- buttons
+- **Manage cross-references** in the dedicated section
+
+### Export Options
+
+- **Save to History**: Click "Save Study" to persist in IndexedDB
+- **Export to Word**: Click "Export" to download a .docx file
+- **Export to JSON**: Use History page for full backup/restore
 
 ## Technology Stack
 
-### Backend
-- **FastAPI**: Modern Python web framework
-- **SQLite**: Local database for caching and history
-- **Claude Sonnet 4**: AI model for generating study content
-- **ESV API**: Bible text retrieval
-
 ### Frontend
-- **Vanilla JavaScript**: Async form handling and dynamic updates
-- **Jinja2**: Server-side templating
-- **CSS Flexbox**: Responsive two-column layout
+- **React 19** with TypeScript
+- **TanStack React Query** for server state
+- **Dexie.js** for IndexedDB client-side persistence
+- **Tailwind CSS 4** for styling
+- **Framer Motion** for animations
+- **@dnd-kit** for drag-and-drop
+- **Zod** for validation
+- **docx** for Word export
+
+### Backend
+- **FastAPI** for API routes
+- **Multi-provider LLM Router** with automatic fallback
+- **ESV API** integration for Scripture text
+
+### LLM Providers (in fallback order)
+1. **Groq** (free, fast) - Primary
+2. **OpenRouter** (free tier, CORS-enabled)
+3. **Google Gemini**
+4. **Anthropic Claude**
 
 ## Project Structure
 
 ```
 daily-bible-study/
-├── main.py                    # FastAPI application and routes
-├── database.py                # SQLite setup and operations
-├── config.py                  # Environment variable loading
+├── main.py                          # FastAPI application
+├── requirements.txt                 # Python dependencies
 ├── services/
-│   ├── claude_api.py         # AI study generation
-│   ├── esv_api.py            # Bible passage fetching
-│   ├── reading_plan.py       # Bible book data and reference formatting
-│   └── bible_data.py         # Verse count validation data
-├── templates/
-│   ├── base.html             # Base template
-│   ├── index.html            # Main study page
-│   └── history.html          # Study history page
-├── static/
-│   ├── style.css             # Application styles
-│   └── app.js                # Frontend JavaScript
-├── requirements.txt          # Python dependencies
-└── CLAUDE.md                 # Developer documentation
+│   ├── esv_api.py                  # ESV Bible API client
+│   ├── llm_router.py               # Multi-provider LLM orchestration
+│   ├── llm_providers/              # Individual provider modules
+│   │   ├── groq_provider.py
+│   │   ├── openrouter_provider.py
+│   │   ├── gemini_provider.py
+│   │   └── claude_provider.py
+│   └── prompts/
+│       └── study_prompt.py         # Study generation prompts
+├── frontend/
+│   ├── package.json
+│   └── src/
+│       ├── api/                    # API clients
+│       │   ├── studyApi.ts         # Backend API calls
+│       │   ├── llmClient.ts        # Direct OpenRouter/ESV calls
+│       │   └── enhanceClient.ts    # AI enhancement functions
+│       ├── components/
+│       │   ├── forms/              # PassageSelector
+│       │   ├── layout/             # Header, DraggableColumn
+│       │   ├── settings/           # API key configuration
+│       │   ├── study/              # Study display and editing
+│       │   │   ├── EditableStudyGuide.tsx
+│       │   │   ├── EditableQuestionCard.tsx
+│       │   │   ├── SortableQuestionList.tsx
+│       │   │   └── ...
+│       │   └── ui/                 # Reusable UI components
+│       ├── db/                     # Dexie IndexedDB setup
+│       ├── hooks/                  # React hooks
+│       │   ├── useEditableStudy.ts # Full CRUD operations
+│       │   ├── useStudyGeneration.ts
+│       │   ├── useApiKeys.ts
+│       │   └── useHistory.ts
+│       ├── pages/
+│       │   ├── HomePage.tsx        # Main editor interface
+│       │   └── HistoryPage.tsx     # History management
+│       ├── types/                  # TypeScript interfaces
+│       └── utils/
+│           ├── blankStudy.ts       # Blank study template
+│           ├── wordExport.ts       # Word document generation
+│           └── validation.ts       # Zod schemas
+└── CLAUDE.md                       # Developer documentation
 ```
 
 ## Configuration
@@ -127,95 +225,86 @@ daily-bible-study/
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ESV_API_KEY` | Yes | Free API key from https://api.esv.org/ |
-| `ANTHROPIC_API_KEY` | Yes | Paid API key from https://console.anthropic.com/ |
-| `DATABASE_PATH` | No | SQLite database path (defaults to `bible_study.db`) |
+| `ESV_API_KEY` | For server | ESV API key from https://api.esv.org/ |
+| `GROQ_API_KEY` | No | Free Groq API key |
+| `OPENROUTER_API_KEY` | No | OpenRouter API key (CORS-enabled) |
+| `GEMINI_API_KEY` | No | Google Gemini API key |
+| `ANTHROPIC_API_KEY` | No | Anthropic Claude API key |
 
-### API Costs
+### API Key Priority
 
-- **ESV API**: Free (with attribution)
-- **Anthropic Claude API**: ~$0.01-0.03 per study generation (cached studies are free)
+**Client-side generation** (recommended):
+- Configure ESV + OpenRouter keys in browser settings
+- No backend required for generation
 
-## How It Works
+**Server-side generation**:
+- Falls back through providers: Groq → OpenRouter → Gemini → Claude
+- Uses first available provider with valid API key
 
-1. **User selects passage** → Form validates verse range client-side
-2. **Generate request** → Server validates and checks cache
-3. **Fetch passage** → ESV API retrieves Bible text (or cache)
-4. **Generate study** → Claude AI creates comprehensive study guide (or cache)
-5. **Display results** → JavaScript updates UI without page reload
-6. **Save history** → Study saved to database for future reference
+## Theological Perspective
 
-## Caching
+This tool generates studies from a **Reformed Christian perspective** with the following doctrinal guardrails:
 
-All API responses are cached indefinitely in SQLite:
-- **ESV passages**: Instant retrieval for any previously fetched passage
-- **Study guides**: Instant display for previously generated studies
-- Cache persists across server restarts
+- **Trinity**: One God in three persons
+- **Scripture Authority**: Bible as the inspired, inerrant Word of God
+- **Total Depravity**: Human inability apart from grace
+- **Salvation by Grace**: Through faith alone, in Christ alone
+- **Scripture Interprets Scripture**: Using clearer passages to illuminate others
 
-## Customization
-
-### Modify the AI Prompt
-
-Edit `services/claude_api.py` → `STUDY_PROMPT` to adjust:
-- Study depth and focus
-- Question types and quantity
-- Cross-reference criteria
-- Theological perspective
-
-### Change Default Passage
-
-Edit `main.py` → `home()` function:
-```python
-book = "John"
-chapter = 1
-start_verse = 1
-end_verse = 18
-```
-
-### Adjust Study Length
-
-Edit `services/claude_api.py` → `max_tokens` parameter (line 113):
-```python
-max_tokens=2500  # Increase for longer studies
-```
+AI-generated content includes a discernment disclaimer reminding users to verify all content against Scripture itself.
 
 ## Development
 
 ### Run in Development Mode
+
 ```bash
+# Backend with auto-reload
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend with HMR
+cd frontend && npm run dev
 ```
 
-### Database Location
-By default, `bible_study.db` is created in the project root. To reset the database:
+### Build for Production
+
 ```bash
-rm bible_study.db
-# Restart the application to recreate
+cd frontend && npm run build
 ```
 
-### Adding New Features
-See `CLAUDE.md` for detailed architecture documentation and design decisions.
+### Customization
+
+**Modify AI prompts**: Edit `services/prompts/study_prompt.py`
+
+**Change default passage**: Edit the default values in `main.py` → `home()` function
+
+**Adjust study structure**: Modify TypeScript interfaces in `frontend/src/types/index.ts`
 
 ## Troubleshooting
 
 ### "API key not configured"
-- Ensure `.env` file exists with valid API keys
-- Restart the server after adding keys
+- For client-side: Click gear icon and enter your API keys
+- For server-side: Check `.env` file exists with valid keys
+- Restart the server after adding environment variables
 
-### Verse validation errors
-- Check that the verse range is valid for the selected chapter
-- Example: Psalm 23 only has 6 verses
+### Study generation fails
+- Check console for provider errors
+- Verify at least one LLM provider has a valid API key
+- Try configuring client-side keys as fallback
 
-### Slow study generation
-- First-time generation takes 5-15 seconds (AI processing)
-- Cached studies load instantly
-- Check your internet connection
+### Changes not saving
+- Click "Save Study" button explicitly (no auto-save)
+- Check for validation errors (red indicator in save bar)
+- Ensure Purpose and Context fields are not empty
+
+### Word export issues
+- Ensure the study has been saved at least once
+- Check browser console for export errors
 
 ## Credits
 
 - **Scripture quotations**: ESV® Bible (The Holy Bible, English Standard Version®)
-- **AI**: Anthropic Claude Sonnet 4
-- **Framework**: FastAPI by Sebastián Ramírez
+- **AI Providers**: Groq, OpenRouter, Google Gemini, Anthropic Claude
+- **Icons**: Lucide React
 
 ## License
 
@@ -223,4 +312,4 @@ This project is for personal and educational use. Please respect the ESV API ter
 
 ---
 
-**Need help?** Check `CLAUDE.md` for detailed technical documentation.
+**Questions?** Check `CLAUDE.md` for detailed technical documentation.
