@@ -230,3 +230,16 @@ export interface SavedStudiesExport {
   version: string;
   savedStudies: SavedStudyRecord[];
 }
+
+// Saved studies import result (detailed per-study results)
+
+export interface SavedStudiesImportResult {
+  success: boolean; // true if at least one study imported (or empty array)
+  imported: number; // count of successfully imported studies
+  skipped: number; // count of invalid/duplicate studies
+  errors: Array<{
+    index: number; // position in array (0-indexed), -1 for structural errors
+    reference?: string; // reference if available for identification
+    error: string; // error message
+  }>;
+}

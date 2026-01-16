@@ -140,11 +140,51 @@ With client-side keys configured, studies are generated directly from your brows
 - **Edit themes** by clicking the badge or using +/- buttons
 - **Manage cross-references** in the dedicated section
 
-### Export Options
+### Export & Import
 
-- **Save to History**: Click "Save Study" to persist in IndexedDB
-- **Export to Word**: Click "Export" to download a .docx file
-- **Export to JSON**: Use History page for full backup/restore
+#### Exporting Studies
+
+1. Navigate to the **Saved** page (link in header)
+2. Click **Export JSON** to download all saved studies
+3. The export file contains all study data in JSON format (v2.0)
+
+The exported JSON includes all fields, even for incomplete/blank studies:
+```json
+{
+  "exportedAt": "2026-01-17T...",
+  "version": "2.0",
+  "savedStudies": [
+    {
+      "id": "uuid",
+      "reference": "John 1:1-18",
+      "passageText": "...",
+      "study": { /* all study fields */ },
+      "provider": "manual",
+      "savedAt": "2026-01-17T..."
+    }
+  ]
+}
+```
+
+#### Importing Studies
+
+1. Navigate to the **Saved** page
+2. Click **Import JSON** and select your export file
+3. The import validates each study individually:
+   - **Valid studies** are imported
+   - **Invalid studies** are skipped with error messages
+   - One invalid study won't block others from importing
+4. Review the import results showing "X imported, Y skipped"
+
+**Validation Rules:**
+- All required keys must be present (id, reference, passageText, study, savedAt)
+- No unexpected/foreign keys allowed (will be rejected)
+- Duplicate IDs are skipped (prevents re-importing same study)
+
+#### Other Export Options
+
+- **Export to Word**: Click "Export to Word" in the save bar to download a .docx file
+- **Save to History**: Click "Save Study" to persist in browser storage
 
 ## Technology Stack
 

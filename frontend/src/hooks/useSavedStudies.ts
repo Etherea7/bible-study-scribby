@@ -9,7 +9,7 @@ import {
   importSavedStudies,
   downloadExport,
 } from '../db';
-import type { SavedStudyRecord, EditableStudyFull } from '../types';
+import type { SavedStudyRecord, EditableStudyFull, SavedStudiesImportResult } from '../types';
 
 /**
  * Hook for fetching all saved studies
@@ -98,21 +98,20 @@ export function useExportSavedStudies() {
 
 /**
  * Hook for importing saved studies from JSON file
+ *
+ * Returns detailed results with per-study import status.
+ * Valid studies are imported, invalid ones are skipped with error messages.
  */
 export function useImportSavedStudies() {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    { success: boolean; imported: number; errors?: string[] },
-    Error,
-    File
-  >({
+  return useMutation<SavedStudiesImportResult, Error, File>({
     mutationFn: async (file: File) => {
       const text = await file.text();
       return importSavedStudies(text);
     },
     onSuccess: (result) => {
-      if (result.success) {
+      if (result.imported > 0) {
         queryClient.invalidateQueries({ queryKey: ['savedStudies'] });
       }
     },

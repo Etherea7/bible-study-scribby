@@ -20,7 +20,13 @@ import type {
   SavedStudyRecord,
   EditableStudyFull,
   SavedStudiesExport,
+  SavedStudiesImportResult,
 } from '../types';
+import { normalizeSavedStudyRecord } from '../utils/normalizeStudy';
+import {
+  validateSavedStudiesExportStructure,
+  validateSavedStudyRecord,
+} from '../utils/validation';
 
 class BibleStudyDB extends Dexie {
   readingHistory!: Table<ReadingHistoryItem>;
@@ -321,63 +327,157 @@ export async function clearSavedStudies(): Promise<void> {
 }
 
 /**
- * Export saved studies as JSON
+ * Export saved studies as JSON (v2.0 with all keys normalized)
+ *
+ * All studies are normalized to ensure every key is present,
+ * even if values are empty. This enables strict validation on import.
  */
 export async function exportSavedStudies(): Promise<string> {
   const savedStudies = await db.savedStudies.toArray();
 
+  // Normalize all studies to ensure all keys are present
+  const normalizedStudies = savedStudies.map(normalizeSavedStudyRecord);
+
   const exportData: SavedStudiesExport = {
     exportedAt: new Date().toISOString(),
-    version: '1.0',
-    savedStudies,
+    version: '2.0',
+    savedStudies: normalizedStudies,
   };
 
   return JSON.stringify(exportData, null, 2);
 }
 
 /**
- * Import saved studies from JSON
+ * Import saved studies from JSON with per-study validation
+ *
+ * Each study is validated individually - valid ones import, invalid ones skip.
+ * Returns detailed results showing what was imported and what failed.
+ *
+ * Supports both v1.0 (lenient) and v2.0 (strict) formats.
  */
-export async function importSavedStudies(jsonString: string): Promise<{
-  success: boolean;
-  imported: number;
-  errors?: string[];
-}> {
+export async function importSavedStudies(jsonString: string): Promise<SavedStudiesImportResult> {
+  // Step 1: Parse JSON
+  let data: unknown;
   try {
-    const data = JSON.parse(jsonString) as SavedStudiesExport;
-
-    if (!data.savedStudies || !Array.isArray(data.savedStudies)) {
-      return {
-        success: false,
-        imported: 0,
-        errors: ['Invalid format: missing savedStudies array'],
-      };
-    }
-
-    let importedCount = 0;
-    for (const record of data.savedStudies) {
-      // Check if already exists by ID
-      const existing = await db.savedStudies.get(record.id);
-      if (!existing) {
-        await db.savedStudies.put({
-          ...record,
-          savedAt: new Date(record.savedAt),
-        });
-        importedCount++;
-      }
-    }
-
-    return {
-      success: true,
-      imported: importedCount,
-    };
+    data = JSON.parse(jsonString);
   } catch (e) {
     return {
       success: false,
       imported: 0,
-      errors: [`Import error: ${e instanceof Error ? e.message : 'Unknown error'}`],
+      skipped: 0,
+      errors: [
+        {
+          index: -1,
+          error: `Invalid JSON: ${e instanceof Error ? e.message : 'Parse error'}`,
+        },
+      ],
     };
   }
+
+  // Step 2: Validate top-level structure (check for foreign keys)
+  const structureResult = validateSavedStudiesExportStructure(data);
+  if (!structureResult.success) {
+    return {
+      success: false,
+      imported: 0,
+      skipped: 0,
+      errors: [
+        {
+          index: -1,
+          error: structureResult.error!,
+        },
+      ],
+    };
+  }
+
+  const studies = structureResult.studies!;
+  const version = structureResult.version;
+  const errors: SavedStudiesImportResult['errors'] = [];
+  let importedCount = 0;
+  let skippedCount = 0;
+
+  // Step 3: Validate and import each study individually
+  for (let i = 0; i < studies.length; i++) {
+    const studyData = studies[i];
+
+    // Get reference for error reporting (if available)
+    const reference =
+      typeof studyData === 'object' && studyData !== null
+        ? (studyData as Record<string, unknown>).reference as string | undefined
+        : undefined;
+
+    // For v1.0 files, normalize first then validate (lenient)
+    // For v2.0 files, validate strictly (rejects foreign keys)
+    let recordToImport: SavedStudyRecord | undefined;
+
+    if (version === '1.0' || !version) {
+      // Lenient mode for v1.0: normalize the data first
+      try {
+        const normalized = normalizeSavedStudyRecord(
+          studyData as Partial<SavedStudyRecord>
+        );
+        recordToImport = normalized;
+      } catch {
+        skippedCount++;
+        errors.push({
+          index: i,
+          reference,
+          error: 'Failed to normalize study data',
+        });
+        continue;
+      }
+    } else {
+      // Strict mode for v2.0+: validate with strict schema
+      const validation = validateSavedStudyRecord(studyData);
+
+      if (!validation.success) {
+        skippedCount++;
+        errors.push({
+          index: i,
+          reference,
+          error: validation.error!,
+        });
+        continue;
+      }
+
+      recordToImport = validation.data!;
+    }
+
+    // Check if already exists by ID
+    const existing = await db.savedStudies.get(recordToImport.id);
+    if (existing) {
+      skippedCount++;
+      errors.push({
+        index: i,
+        reference: recordToImport.reference,
+        error: 'Study already exists (duplicate ID)',
+      });
+      continue;
+    }
+
+    // Import the study
+    try {
+      await db.savedStudies.put({
+        ...recordToImport,
+        savedAt: new Date(recordToImport.savedAt),
+      });
+      importedCount++;
+    } catch (e) {
+      skippedCount++;
+      errors.push({
+        index: i,
+        reference: recordToImport.reference,
+        error: `Database error: ${e instanceof Error ? e.message : 'Unknown error'}`,
+      });
+    }
+  }
+
+  return {
+    success: importedCount > 0 || studies.length === 0, // Success if at least one imported (or empty array)
+    imported: importedCount,
+    skipped: skippedCount,
+    errors,
+  };
 }
 
 // Import functionality

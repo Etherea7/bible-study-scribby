@@ -15,7 +15,12 @@ import {
 interface ImportResult {
   success: boolean;
   imported: number;
-  errors?: string[];
+  skipped: number;
+  errors: Array<{
+    index: number;
+    reference?: string;
+    error: string;
+  }>;
 }
 
 export function SavedPage() {
@@ -148,46 +153,64 @@ export function SavedPage() {
         {/* Import Result Notification */}
         {importResult && (
           <div className={`mb-6 p-4 rounded-lg border ${
-            importResult.success
+            importResult.imported > 0
               ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
               : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
           }`}>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
-                {importResult.success ? (
+                {importResult.imported > 0 ? (
                   <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
                 ) : (
                   <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                 )}
                 <div>
                   <p className={`font-medium ${
-                    importResult.success
+                    importResult.imported > 0
                       ? 'text-green-800 dark:text-green-200'
                       : 'text-red-800 dark:text-red-200'
                   }`}>
-                    {importResult.success ? 'Import Successful' : 'Import Failed'}
+                    {importResult.imported > 0
+                      ? `Import Complete: ${importResult.imported} imported${importResult.skipped > 0 ? `, ${importResult.skipped} skipped` : ''}`
+                      : 'Import Failed'
+                    }
                   </p>
-                  {importResult.success && (
+
+                  {importResult.imported > 0 && importResult.skipped === 0 && (
                     <p className="text-sm text-green-700 dark:text-green-300 mt-1">
-                      Imported {importResult.imported} saved {importResult.imported === 1 ? 'study' : 'studies'}
+                      All {importResult.imported} {importResult.imported === 1 ? 'study was' : 'studies were'} imported successfully.
                     </p>
                   )}
-                  {importResult.errors && importResult.errors.length > 0 && (
-                    <ul className="text-sm text-red-700 dark:text-red-300 mt-1 list-disc list-inside">
-                      {importResult.errors.slice(0, 5).map((err, i) => (
-                        <li key={i}>{err}</li>
-                      ))}
-                      {importResult.errors.length > 5 && (
-                        <li>...and {importResult.errors.length - 5} more errors</li>
-                      )}
-                    </ul>
+
+                  {importResult.errors.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-1">
+                        Issues encountered:
+                      </p>
+                      <ul className="text-sm text-amber-700 dark:text-amber-300 list-disc list-inside space-y-1">
+                        {importResult.errors.slice(0, 5).map((err, i) => (
+                          <li key={i}>
+                            {err.index >= 0 && (
+                              <span className="font-mono text-xs mr-1">[{err.index + 1}]</span>
+                            )}
+                            {err.reference && <strong>"{err.reference}": </strong>}
+                            {err.error}
+                          </li>
+                        ))}
+                        {importResult.errors.length > 5 && (
+                          <li className="text-amber-600 dark:text-amber-400">
+                            ...and {importResult.errors.length - 5} more issues
+                          </li>
+                        )}
+                      </ul>
+                    </div>
                   )}
                 </div>
               </div>
               <button
                 onClick={dismissImportResult}
                 className={`text-sm ${
-                  importResult.success
+                  importResult.imported > 0
                     ? 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200'
                     : 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200'
                 }`}

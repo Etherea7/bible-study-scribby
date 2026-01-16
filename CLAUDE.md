@@ -114,11 +114,12 @@ frontend/src/
 ├── types/
 │   └── index.ts       # TypeScript interfaces
 └── utils/
-    ├── bibleData.ts   # Book/chapter/verse validation
-    ├── validation.ts  # Zod schemas for import validation
-    ├── studyPrompt.ts # TypeScript port of study prompt
-    ├── blankStudy.ts  # Create blank study templates
-    └── wordExport.ts  # Export studies to Word documents
+    ├── bibleData.ts      # Book/chapter/verse validation
+    ├── validation.ts     # Zod schemas for import validation (strict mode)
+    ├── normalizeStudy.ts # Normalize studies for export (ensure all keys present)
+    ├── studyPrompt.ts    # TypeScript port of study prompt
+    ├── blankStudy.ts     # Create blank study templates
+    └── wordExport.ts     # Export studies to Word documents
 ```
 
 ### Key Components
@@ -339,14 +340,42 @@ useImportSavedStudies() // Import from JSON
 }
 ```
 
-**Saved Studies Export** (SavedPage)
+**Saved Studies Export** (SavedPage) - v2.0
 ```json
 {
-  "exportedAt": "2026-01-16T...",
-  "version": "1.0",
-  "savedStudies": [...]  // SavedStudyRecord[] with full study content
+  "exportedAt": "2026-01-17T...",
+  "version": "2.0",
+  "savedStudies": [
+    {
+      "id": "uuid",
+      "reference": "John 1:1-18",
+      "passageText": "In the beginning...",
+      "study": {
+        "id": "study-uuid",
+        "purpose": "",           // All keys present even if empty
+        "context": "",
+        "key_themes": [],
+        "study_flow": [],
+        "summary": "",
+        "application_questions": [],
+        "cross_references": [],
+        "prayer_prompt": "",
+        "lastModified": null,
+        "isEdited": false,
+        "isSaved": true
+      },
+      "provider": "manual",
+      "savedAt": "2026-01-17T..."
+    }
+  ]
 }
 ```
+
+**Import Validation Rules**:
+- All required keys must be present (id, reference, passageText, study, savedAt)
+- No foreign/unexpected keys allowed (rejected by strict validation)
+- Per-study validation: valid studies import, invalid ones skip with error messages
+- Backward compatible: v1.0 files are normalized before import
 
 ## Key Design Decisions
 
@@ -365,7 +394,7 @@ useImportSavedStudies() // Import from JSON
    - Saved studies have their own page (/saved) with JSON import/export
 6. **Manual save flow**: Studies NOT auto-saved - explicit Save button required
 7. **Unsaved changes protection**: Browser warning on navigation, Ctrl+S shortcut
-8. **JSON import/export**: Zod validation on import, append mode (no replace)
+8. **JSON import/export**: Strict Zod validation, per-study validation (valid imports, invalid skips), append mode
 9. **Doctrinal guardrails**: Reformed theology embedded in prompt (Trinity, TULIP, etc.)
 10. **Flow-based generation**: Users can define section purposes for custom question generation
 11. **Fun generate button**: Animated gradient button with sparkles icon
@@ -467,10 +496,14 @@ useImportSavedStudies() // Import from JSON
 
 8. **Import/Export**:
    - History export creates valid JSON
-   - Saved studies export creates valid JSON
-   - Import validates structure
+   - Saved studies export creates valid JSON (v2.0 with all keys present)
+   - Export blank/incomplete study → verify all keys present (even if empty)
+   - Import validates each study individually (per-study validation)
+   - Import with mix of valid/invalid → valid ones import, invalid skip
+   - Import shows "X imported, Y skipped" with detailed error list
+   - Foreign keys in JSON → study rejected with clear error
    - Import appends (doesn't replace)
-   - Invalid JSON shows error messages
+   - Duplicate IDs → skipped (not imported again)
 
 9. **UI**:
    - Generate button has gradient animation
