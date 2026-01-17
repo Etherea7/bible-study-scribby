@@ -101,7 +101,7 @@ export function getChapterCount(book: string): number {
 }
 
 /**
- * Validate a verse range
+ * Validate a verse range (single chapter)
  */
 export function validateVerseRange(
   book: string,
@@ -115,4 +115,105 @@ export function validateVerseRange(
   if (startVerse > endVerse) return false;
   if (endVerse > maxVerse) return false;
   return true;
+}
+
+/**
+ * Passage range type for cross-chapter selections
+ */
+export interface PassageRange {
+  book: string;
+  startChapter: number;
+  startVerse: number;
+  endChapter: number;
+  endVerse: number;
+}
+
+/**
+ * Validate a cross-chapter passage range
+ */
+export function validateCrossChapterRange(range: PassageRange): boolean {
+  const { book, startChapter, startVerse, endChapter, endVerse } = range;
+
+  const maxChapters = getChapterCount(book);
+  if (maxChapters === 0) return false;
+
+  // Validate chapter bounds
+  if (startChapter < 1 || startChapter > maxChapters) return false;
+  if (endChapter < 1 || endChapter > maxChapters) return false;
+
+  // End must be after or equal to start
+  if (endChapter < startChapter) return false;
+
+  // Validate verse bounds
+  const startMaxVerse = getVerseCount(book, startChapter);
+  const endMaxVerse = getVerseCount(book, endChapter);
+
+  if (startVerse < 1 || startVerse > startMaxVerse) return false;
+  if (endVerse < 1 || endVerse > endMaxVerse) return false;
+
+  // If same chapter, end verse must be >= start verse
+  if (startChapter === endChapter && endVerse < startVerse) return false;
+
+  return true;
+}
+
+/**
+ * Build a reference string from a passage range
+ * Examples: "John 3:16", "John 1:1-18", "John 1:1-2:10"
+ */
+export function buildCrossChapterReference(range: PassageRange): string {
+  const { book, startChapter, startVerse, endChapter, endVerse } = range;
+
+  if (startChapter === endChapter) {
+    if (startVerse === endVerse) {
+      return `${book} ${startChapter}:${startVerse}`;
+    }
+    return `${book} ${startChapter}:${startVerse}-${endVerse}`;
+  }
+
+  return `${book} ${startChapter}:${startVerse}-${endChapter}:${endVerse}`;
+}
+
+/**
+ * Calculate the total number of verses in a passage range
+ */
+export function getTotalVersesInRange(range: PassageRange): number {
+  const { book, startChapter, startVerse, endChapter, endVerse } = range;
+
+  if (!validateCrossChapterRange(range)) return 0;
+
+  let total = 0;
+
+  for (let chapter = startChapter; chapter <= endChapter; chapter++) {
+    const maxVerse = getVerseCount(book, chapter);
+
+    if (chapter === startChapter && chapter === endChapter) {
+      // Same chapter: count from startVerse to endVerse
+      total += endVerse - startVerse + 1;
+    } else if (chapter === startChapter) {
+      // First chapter: count from startVerse to end of chapter
+      total += maxVerse - startVerse + 1;
+    } else if (chapter === endChapter) {
+      // Last chapter: count from 1 to endVerse
+      total += endVerse;
+    } else {
+      // Middle chapters: count all verses
+      total += maxVerse;
+    }
+  }
+
+  return total;
+}
+
+/**
+ * Get book names grouped by testament
+ */
+export function getBooksGroupedByTestament(): { oldTestament: string[]; newTestament: string[] } {
+  const allBooks = Object.keys(BIBLE_VERSES);
+  const ntStartIndex = allBooks.indexOf('Matthew');
+
+  return {
+    oldTestament: allBooks.slice(0, ntStartIndex),
+    newTestament: allBooks.slice(ntStartIndex),
+  };
 }

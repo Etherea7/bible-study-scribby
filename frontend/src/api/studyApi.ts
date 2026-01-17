@@ -46,16 +46,28 @@ export async function getProviders(): Promise<ProvidersResponse> {
 }
 
 /**
+ * Options for server-side passage fetching
+ */
+export interface FetchPassageFromServerOptions {
+  includeHeadings?: boolean;  // Default: true
+}
+
+/**
  * Fetch Bible passage text from server ESV API
  * Used when user doesn't have their own ESV API key configured
  */
-export async function fetchPassageFromServer(reference: string): Promise<string> {
+export async function fetchPassageFromServer(
+  reference: string,
+  options: FetchPassageFromServerOptions = {}
+): Promise<string> {
+  const { includeHeadings = true } = options;
+
   const response = await fetch(`${API_BASE}/passage`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ reference }),
+    body: JSON.stringify({ reference, include_headings: includeHeadings }),
   });
 
   if (!response.ok) {

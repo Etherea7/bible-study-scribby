@@ -85,7 +85,7 @@ frontend/src/
 │   ├── llmClient.ts       # Direct OpenRouter/ESV API calls (client-side)
 │   └── enhanceClient.ts   # AI enhancement functions (rephrase, shorten, enhance)
 ├── components/
-│   ├── forms/        # PassageSelector
+│   ├── forms/        # PassageSelector, BookSearchCombobox, PassagePreview
 │   ├── layout/       # Header, DraggableColumn
 │   ├── settings/
 │   │   └── ApiKeySettings.tsx  # API key configuration modal
@@ -114,7 +114,8 @@ frontend/src/
 ├── types/
 │   └── index.ts       # TypeScript interfaces
 └── utils/
-    ├── bibleData.ts      # Book/chapter/verse validation
+    ├── bibleData.ts      # Book/chapter/verse validation, cross-chapter range utilities
+    ├── formatReference.ts # Format/parse Bible references (cross-chapter support)
     ├── validation.ts     # Zod schemas for import validation (strict mode)
     ├── normalizeStudy.ts # Normalize studies for export (ensure all keys present)
     ├── studyPrompt.ts    # TypeScript port of study prompt
@@ -150,6 +151,22 @@ frontend/src/
 - History navigation link (to /history)
 - Settings icon (gear) opens API key configuration modal with disclaimer
 - Dark mode toggle
+
+**PassageSelector.tsx**
+- Passage selection form with cross-chapter range support
+- **BookSearchCombobox**: Typeahead search for book selection
+  - Fuzzy matching with keyboard navigation
+  - Grouped by Old Testament / New Testament
+  - Shows chapter count per book
+- **Cross-chapter ranges**: FROM/TO selector layout
+  - Select start chapter + verse and end chapter + verse
+  - Supports ranges like "John 1:1-2:10" for expository study
+  - Smart defaults and automatic constraint validation
+- **PassagePreview**: Live passage preview panel
+  - Debounced API calls (500ms) when selection changes
+  - Shows verse count and full passage text
+  - Collapsible with loading/error states
+  - Uses client-side ESV API if key configured, else server fallback
 
 **StudyFlowEditor.tsx**
 - Displays study sections with expandable details
@@ -239,6 +256,17 @@ interface StudyFlowItem {
   interpretation_question: string;  // What does it mean?
   interpretation_answer: string;    // Model answer
   connection?: string;           // Bridge to next section
+}
+```
+
+**GenerateStudyRequest** (API request with cross-chapter support)
+```typescript
+interface GenerateStudyRequest {
+  book: string;
+  chapter: number;              // Start chapter
+  start_verse?: number;
+  end_chapter?: number;         // Optional: for cross-chapter ranges (e.g., John 1:1-2:10)
+  end_verse?: number;
 }
 ```
 
@@ -453,15 +481,28 @@ useImportSavedStudies() // Import from JSON
 
 1. **Study generation**:
    - Verse range works: "John 1:1-18"
+   - Cross-chapter range works: "John 1:1-2:10"
    - Purpose statement has action verb
    - Doctrinal content aligns with Reformed theology
 
-2. **3-Column Layout**:
+2. **PassageSelector**:
+   - Book search: Type "Jo" → shows John, Joshua, Job, Jonah, Joel, Jude
+   - Keyboard navigation: Arrow keys to navigate, Enter to select
+   - Book groups: Old Testament and New Testament sections
+   - Cross-chapter selection: Select John 1:1 as start, Chapter 2 Verse 10 as end
+   - Reference displays as "John 1:1-2:10"
+   - End chapter dropdown only shows chapters >= start chapter
+   - End verse dropdown shows verses >= start verse (when same chapter)
+   - Passage preview loads after ~500ms debounce
+   - Preview shows verse count badge
+   - Preview is collapsible
+
+3. **3-Column Layout**:
    - Drag columns to reorder
    - Refresh page - order persists
    - Mobile: stacks vertically
 
-3. **Editable Content**:
+4. **Editable Content**:
    - Click any field to edit (Purpose, Context, questions, etc.)
    - Add questions via type selector (O/I/F/A)
    - Remove questions via trash icon
@@ -470,7 +511,7 @@ useImportSavedStudies() // Import from JSON
    - Escape cancels edit, changes debounced (500ms)
    - Purpose and Context show validation error if empty
 
-4. **Manual Save Flow**:
+5. **Manual Save Flow**:
    - Save bar at bottom (after columns)
    - Save bar shows "Unsaved changes" (amber)
    - Save bar shows validation errors (red)
@@ -479,7 +520,7 @@ useImportSavedStudies() // Import from JSON
    - Ctrl+S keyboard shortcut works
    - Browser warns before leaving with unsaved changes
 
-5. **Saved Studies Page** (/saved):
+6. **Saved Studies Page** (/saved):
    - Navigate via "Saved" link in header
    - Shows list of saved studies with reference, provider, date
    - "View" button loads study into HomePage

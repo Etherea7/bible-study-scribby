@@ -7,7 +7,7 @@ const ESV_API_URL = 'https://api.esv.org/v3/passage/text/';
 /**
  * Fetch passage from ESV API
  */
-async function fetchPassage(reference: string): Promise<string> {
+async function fetchPassage(reference: string, includeHeadings: boolean = true): Promise<string> {
     const apiKey = process.env.ESV_API_KEY;
     if (!apiKey) {
         return '[ESV API key not configured. Please add ESV_API_KEY to environment variables.]';
@@ -15,11 +15,11 @@ async function fetchPassage(reference: string): Promise<string> {
 
     const params = new URLSearchParams({
         q: reference,
-        'include-headings': 'true',
+        'include-headings': includeHeadings ? 'true' : 'false',
         'include-footnotes': 'false',
         'include-verse-numbers': 'true',
         'include-short-copyright': 'true',
-        'include-passage-references': 'true',
+        'include-passage-references': includeHeadings ? 'true' : 'false',
     });
 
     try {
@@ -42,24 +42,39 @@ async function fetchPassage(reference: string): Promise<string> {
 }
 
 /**
- * Build reference string from components
+ * Build reference string from components with cross-chapter support
  */
 function buildReference(
     book: string,
-    chapter: number,
+    startChapter: number,
     startVerse?: number,
+    endChapter?: number,
     endVerse?: number
 ): string {
-    let reference = `${book} ${chapter}`;
+    // Default end chapter to start chapter if not provided
+    const effectiveEndChapter = endChapter ?? startChapter;
 
-    if (startVerse) {
-        reference += `:${startVerse}`;
-        if (endVerse && endVerse !== startVerse) {
-            reference += `-${endVerse}`;
+    // No verses specified
+    if (!startVerse) {
+        if (startChapter === effectiveEndChapter) {
+            return `${book} ${startChapter}`;
         }
+        return `${book} ${startChapter}-${effectiveEndChapter}`;
     }
 
-    return reference;
+    // Same chapter case
+    if (startChapter === effectiveEndChapter) {
+        if (!endVerse || endVerse === startVerse) {
+            return `${book} ${startChapter}:${startVerse}`;
+        }
+        return `${book} ${startChapter}:${startVerse}-${endVerse}`;
+    }
+
+    // Cross-chapter case
+    if (!endVerse) {
+        return `${book} ${startChapter}:${startVerse}-${effectiveEndChapter}`;
+    }
+    return `${book} ${startChapter}:${startVerse}-${effectiveEndChapter}:${endVerse}`;
 }
 
 /**
@@ -75,20 +90,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { book, chapter, start_verse, end_verse } = req.body;
+        const { book, chapter, start_verse, end_chapter, end_verse } = req.body;
 
         // Validate required fields
         if (!book || typeof chapter !== 'number') {
             return res.status(400).json({ error: 'Missing required fields: book, chapter' });
         }
 
-        // Build reference string
-        const reference = buildReference(book, chapter, start_verse, end_verse);
+        // Build reference string (with cross-chapter support)
+        const reference = buildReference(book, chapter, start_verse, end_chapter, end_verse);
 
         console.log(`[API] Generating study for: ${reference}`);
 
-        // Fetch passage text from ESV API
-        const passageText = await fetchPassage(reference);
+        // Fetch passage text from ESV API (include headings for study generation)
+        const passageText = await fetchPassage(reference, true);
 
         // Generate study using LLM with fallback
         const { study, provider } = await generateStudyWithFallback(reference, passageText);

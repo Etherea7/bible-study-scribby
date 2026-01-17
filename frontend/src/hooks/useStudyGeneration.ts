@@ -25,10 +25,14 @@ export function useStudyGeneration() {
 
   return useMutation<StudyResult, Error, GenerateStudyRequest>({
     mutationFn: async (params) => {
+      // Use end_chapter from params, defaulting to start chapter
+      const endChapter = params.end_chapter ?? params.chapter;
+
       const reference = formatReference(
         params.book,
         params.chapter,
         params.start_verse,
+        endChapter,
         params.end_verse
       );
 
@@ -57,11 +61,12 @@ export function useStudyGeneration() {
         // Client-side generation using user's API keys
         console.log('[Dev] Using client-side generation with user API keys');
 
-        // Build reference for ESV API
+        // Build reference for ESV API (supports cross-chapter)
         const esvReference = buildReference(
           params.book,
           params.chapter,
           params.start_verse,
+          endChapter,
           params.end_verse
         );
 

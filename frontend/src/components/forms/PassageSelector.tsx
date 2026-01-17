@@ -1,13 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
-import { BIBLE_BOOKS, getVerseCount, getChapterCount, validateVerseRange } from '../../utils/bibleData';
+import { BookSearchCombobox } from './BookSearchCombobox';
+import { PassagePreview } from './PassagePreview';
+import {
+  getVerseCount,
+  getChapterCount,
+  validateCrossChapterRange,
+  type PassageRange
+} from '../../utils/bibleData';
 
 interface PassageSelectorProps {
-  onSubmit: (book: string, chapter: number, startVerse?: number, endVerse?: number) => void;
+  onSubmit: (
+    book: string,
+    startChapter: number,
+    startVerse: number,
+    endChapter: number,
+    endVerse: number
+  ) => void;
   loading?: boolean;
   initialBook?: string;
-  initialChapter?: number;
+  initialStartChapter?: number;
   initialStartVerse?: number;
+  initialEndChapter?: number;
   initialEndVerse?: number;
 }
 
@@ -15,49 +29,91 @@ export function PassageSelector({
   onSubmit,
   loading = false,
   initialBook = 'John',
-  initialChapter = 1,
+  initialStartChapter = 1,
   initialStartVerse = 1,
+  initialEndChapter = 1,
   initialEndVerse = 18,
 }: PassageSelectorProps) {
   const [book, setBook] = useState(initialBook);
-  const [chapter, setChapter] = useState(initialChapter);
+  const [startChapter, setStartChapter] = useState(initialStartChapter);
   const [startVerse, setStartVerse] = useState(initialStartVerse);
+  const [endChapter, setEndChapter] = useState(initialEndChapter);
   const [endVerse, setEndVerse] = useState(initialEndVerse);
   const [error, setError] = useState<string | null>(null);
 
   const maxChapters = getChapterCount(book);
-  const maxVerses = getVerseCount(book, chapter);
+  const startMaxVerses = getVerseCount(book, startChapter);
+  const endMaxVerses = getVerseCount(book, endChapter);
 
-  // Reset chapter when book changes
+  // Current passage range for preview
+  const passageRange: PassageRange = useMemo(() => ({
+    book,
+    startChapter,
+    startVerse,
+    endChapter,
+    endVerse,
+  }), [book, startChapter, startVerse, endChapter, endVerse]);
+
+  // Reset chapters when book changes
   useEffect(() => {
     const newMaxChapters = getChapterCount(book);
-    if (chapter > newMaxChapters) {
-      setChapter(1);
+    if (startChapter > newMaxChapters) {
+      setStartChapter(1);
+      setEndChapter(1);
     }
-  }, [book, chapter]);
+    if (endChapter > newMaxChapters) {
+      setEndChapter(Math.min(endChapter, newMaxChapters));
+    }
+  }, [book]);
 
-  // Reset verses when chapter changes
+  // Ensure end chapter >= start chapter
   useEffect(() => {
-    const newMaxVerses = getVerseCount(book, chapter);
+    if (endChapter < startChapter) {
+      setEndChapter(startChapter);
+    }
+  }, [startChapter]);
+
+  // Reset start verse when start chapter changes
+  useEffect(() => {
+    const newMaxVerses = getVerseCount(book, startChapter);
     if (startVerse > newMaxVerses) {
       setStartVerse(1);
     }
+  }, [book, startChapter]);
+
+  // Reset end verse when end chapter changes or when verses become invalid
+  useEffect(() => {
+    const newMaxVerses = getVerseCount(book, endChapter);
     if (endVerse > newMaxVerses) {
       setEndVerse(newMaxVerses);
     }
-  }, [book, chapter, startVerse, endVerse]);
+    // If same chapter, end verse must be >= start verse
+    if (startChapter === endChapter && endVerse < startVerse) {
+      setEndVerse(startVerse);
+    }
+  }, [book, startChapter, endChapter, startVerse]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     // Validate
-    if (!validateVerseRange(book, chapter, startVerse, endVerse)) {
+    if (!validateCrossChapterRange(passageRange)) {
       setError('Invalid verse range');
       return;
     }
 
-    onSubmit(book, chapter, startVerse, endVerse);
+    onSubmit(book, startChapter, startVerse, endChapter, endVerse);
+  };
+
+  const handleBookChange = (newBook: string) => {
+    setBook(newBook);
+    // Reset to reasonable defaults when book changes
+    setStartChapter(1);
+    setStartVerse(1);
+    setEndChapter(1);
+    const firstChapterVerses = getVerseCount(newBook, 1);
+    setEndVerse(Math.min(18, firstChapterVerses));
   };
 
   const selectBaseClasses = `
@@ -73,87 +129,124 @@ export function PassageSelector({
     bg-no-repeat bg-[length:1rem] bg-[right_0.75rem_center]
   `.trim();
 
+  // Generate chapter options
+  const chapterOptions = Array.from({ length: maxChapters }, (_, i) => i + 1);
+
+  // Generate verse options for start (1 to max)
+  const startVerseOptions = Array.from({ length: startMaxVerses }, (_, i) => i + 1);
+
+  // Generate verse options for end
+  // If same chapter, must be >= startVerse, otherwise 1 to max
+  const endVerseOptions = useMemo(() => {
+    const options = Array.from({ length: endMaxVerses }, (_, i) => i + 1);
+    if (startChapter === endChapter) {
+      return options.filter(v => v >= startVerse);
+    }
+    return options;
+  }, [endMaxVerses, startChapter, endChapter, startVerse]);
+
+  // End chapter options: must be >= startChapter
+  const endChapterOptions = chapterOptions.filter(c => c >= startChapter);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {/* Book Select */}
-        <div className="col-span-2 md:col-span-1">
-          <label htmlFor="book" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-            Book
-          </label>
-          <select
-            id="book"
-            value={book}
-            onChange={(e) => setBook(e.target.value)}
-            className={selectBaseClasses}
-          >
-            {BIBLE_BOOKS.map((b) => (
-              <option key={b.name} value={b.name}>
-                {b.name}
-              </option>
-            ))}
-          </select>
+      {/* Book Selector */}
+      <BookSearchCombobox
+        value={book}
+        onChange={handleBookChange}
+      />
+
+      {/* Chapter/Verse Range Selectors */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* FROM Section */}
+        <div className="p-4 rounded-lg bg-[var(--bg-elevated)]/50 border border-[var(--border-color)]">
+          <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+            From
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="startChapter" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                Chapter
+              </label>
+              <select
+                id="startChapter"
+                value={startChapter}
+                onChange={(e) => setStartChapter(Number(e.target.value))}
+                className={selectBaseClasses}
+              >
+                {chapterOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="startVerse" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                Verse
+              </label>
+              <select
+                id="startVerse"
+                value={startVerse}
+                onChange={(e) => setStartVerse(Number(e.target.value))}
+                className={selectBaseClasses}
+              >
+                {startVerseOptions.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Chapter Select */}
-        <div>
-          <label htmlFor="chapter" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-            Chapter
-          </label>
-          <select
-            id="chapter"
-            value={chapter}
-            onChange={(e) => setChapter(Number(e.target.value))}
-            className={selectBaseClasses}
-          >
-            {Array.from({ length: maxChapters }, (_, i) => i + 1).map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Start Verse */}
-        <div>
-          <label htmlFor="startVerse" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-            From Verse
-          </label>
-          <select
-            id="startVerse"
-            value={startVerse}
-            onChange={(e) => setStartVerse(Number(e.target.value))}
-            className={selectBaseClasses}
-          >
-            {Array.from({ length: maxVerses }, (_, i) => i + 1).map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* End Verse */}
-        <div>
-          <label htmlFor="endVerse" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-            To Verse
-          </label>
-          <select
-            id="endVerse"
-            value={endVerse}
-            onChange={(e) => setEndVerse(Number(e.target.value))}
-            className={selectBaseClasses}
-          >
-            {Array.from({ length: maxVerses }, (_, i) => i + 1)
-              .filter((v) => v >= startVerse)
-              .map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-          </select>
+        {/* TO Section */}
+        <div className="p-4 rounded-lg bg-[var(--bg-elevated)]/50 border border-[var(--border-color)]">
+          <div className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+            To
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="endChapter" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                Chapter
+              </label>
+              <select
+                id="endChapter"
+                value={endChapter}
+                onChange={(e) => setEndChapter(Number(e.target.value))}
+                className={selectBaseClasses}
+              >
+                {endChapterOptions.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="endVerse" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+                Verse
+              </label>
+              <select
+                id="endVerse"
+                value={endVerse}
+                onChange={(e) => setEndVerse(Number(e.target.value))}
+                className={selectBaseClasses}
+              >
+                {endVerseOptions.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* Passage Preview */}
+      <PassagePreview range={passageRange} />
 
       {error && (
         <p className="text-red-600 text-sm">{error}</p>

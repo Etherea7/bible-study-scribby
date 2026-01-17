@@ -127,18 +127,32 @@ export async function callOpenRouter(
 }
 
 /**
+ * Options for fetching passages
+ */
+export interface FetchPassageOptions {
+  includeHeadings?: boolean;  // Default: true
+}
+
+/**
  * Fetch Bible passage text from ESV API directly from the browser.
  *
  * @param reference - The passage reference (e.g., "John 1:1-18")
  * @param apiKey - The user's ESV API key
+ * @param options - Optional settings for the fetch
  * @returns The passage text
  */
-export async function fetchPassage(reference: string, apiKey: string): Promise<string> {
+export async function fetchPassage(
+  reference: string,
+  apiKey: string,
+  options: FetchPassageOptions = {}
+): Promise<string> {
+  const { includeHeadings = true } = options;
+
   console.log(`[Dev] Fetching passage "${reference}" from ESV API`);
 
   const params = new URLSearchParams({
     q: reference,
-    'include-headings': 'true',
+    'include-headings': includeHeadings ? 'true' : 'false',
     'include-verse-numbers': 'true',
     'include-footnotes': 'false',
     'include-short-copyright': 'true',
@@ -172,27 +186,44 @@ export async function fetchPassage(reference: string, apiKey: string): Promise<s
 
 /**
  * Build the passage reference string from components.
+ * Supports same-chapter ranges (John 1:1-18) and cross-chapter ranges (John 1:1-2:10)
  *
  * @param book - Book name (e.g., "John")
- * @param chapter - Chapter number
- * @param startVerse - Optional start verse
- * @param endVerse - Optional end verse
- * @returns Formatted reference string (e.g., "John 1:1-18")
+ * @param startChapter - Start chapter number
+ * @param startVerse - Start verse number (optional, defaults to 1)
+ * @param endChapter - End chapter number (optional, defaults to startChapter)
+ * @param endVerse - End verse number (optional)
+ * @returns Formatted reference string (e.g., "John 1:1-18" or "John 1:1-2:10")
  */
 export function buildReference(
   book: string,
-  chapter: number,
+  startChapter: number,
   startVerse?: number,
+  endChapter?: number,
   endVerse?: number
 ): string {
-  let reference = `${book} ${chapter}`;
+  // Default end chapter to start chapter if not provided
+  const effectiveEndChapter = endChapter ?? startChapter;
 
-  if (startVerse) {
-    reference += `:${startVerse}`;
-    if (endVerse && endVerse !== startVerse) {
-      reference += `-${endVerse}`;
+  // If no verses specified, just return book and chapter
+  if (!startVerse) {
+    if (startChapter === effectiveEndChapter) {
+      return `${book} ${startChapter}`;
     }
+    return `${book} ${startChapter}-${effectiveEndChapter}`;
   }
 
-  return reference;
+  // Same chapter case
+  if (startChapter === effectiveEndChapter) {
+    if (!endVerse || endVerse === startVerse) {
+      return `${book} ${startChapter}:${startVerse}`;
+    }
+    return `${book} ${startChapter}:${startVerse}-${endVerse}`;
+  }
+
+  // Cross-chapter case
+  if (!endVerse) {
+    return `${book} ${startChapter}:${startVerse}-${effectiveEndChapter}`;
+  }
+  return `${book} ${startChapter}:${startVerse}-${effectiveEndChapter}:${endVerse}`;
 }

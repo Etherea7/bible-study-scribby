@@ -178,14 +178,16 @@ export function HomePage() {
 
   const handleGenerateStudy = async (
     book: string,
-    chapter: number,
-    startVerse?: number,
-    endVerse?: number
+    startChapter: number,
+    startVerse: number,
+    endChapter: number,
+    endVerse: number
   ) => {
     const result = await generateMutation.mutateAsync({
       book,
-      chapter,
+      chapter: startChapter,
       start_verse: startVerse,
+      end_chapter: endChapter,
       end_verse: endVerse,
     });
 
@@ -474,8 +476,8 @@ export function HomePage() {
 
                   {/* ESV API key status */}
                   <div className={`text-xs px-3 py-2 rounded-lg ${apiKeys.esvApiKey
-                      ? 'bg-green-500/10 text-green-700 dark:text-green-400'
-                      : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
+                    ? 'bg-green-500/10 text-green-700 dark:text-green-400'
+                    : 'bg-blue-500/10 text-blue-700 dark:text-blue-400'
                     }`}>
                     {apiKeys.esvApiKey
                       ? 'ESV API key configured - passage text will be fetched via your key'

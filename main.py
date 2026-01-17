@@ -33,6 +33,7 @@ class GenerateStudyRequest(BaseModel):
     book: str
     chapter: int
     start_verse: Optional[int] = None
+    end_chapter: Optional[int] = None  # For cross-chapter ranges
     end_verse: Optional[int] = None
 
 
@@ -88,16 +89,29 @@ async def generate_study_endpoint(req: GenerateStudyRequest):
             content={"error": f"Chapter must be between 1 and {max_chapters} for {req.book}"}
         )
 
-    # Validate verse range if provided
-    if req.start_verse is not None and req.end_verse is not None:
-        if not validate_verse_range(req.book, req.chapter, req.start_verse, req.end_verse):
-            return JSONResponse(
-                status_code=400,
-                content={"error": "Invalid verse range"}
-            )
+    # Determine end chapter (defaults to start chapter)
+    end_chapter = req.end_chapter if req.end_chapter is not None else req.chapter
+    
+    # Validate end chapter
+    if end_chapter < req.chapter or end_chapter > max_chapters:
+        return JSONResponse(
+            status_code=400,
+            content={"error": f"End chapter must be between {req.chapter} and {max_chapters}"}
+        )
 
-    # Build reference string
-    reference = get_reference(req.book, req.chapter, req.start_verse, req.end_verse)
+    # Validate verse range if provided (for single chapter, use original validation)
+    if req.start_verse is not None and req.end_verse is not None:
+        if req.chapter == end_chapter:
+            # Same chapter: use standard validation
+            if not validate_verse_range(req.book, req.chapter, req.start_verse, req.end_verse):
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "Invalid verse range"}
+                )
+        # For cross-chapter, the ESV API will validate the verse ranges
+
+    # Build reference string (with cross-chapter support)
+    reference = get_reference(req.book, req.chapter, req.start_verse, req.end_verse, end_chapter)
 
     # Fetch passage text
     passage_text = await fetch_passage(reference)
@@ -131,13 +145,14 @@ async def get_providers():
 
 class FetchPassageRequest(BaseModel):
     reference: str
+    include_headings: bool = True  # Set to False for preview (cleaner display)
 
 
 @app.post("/api/passage")
 async def fetch_passage_endpoint(req: FetchPassageRequest):
-    """Fetch Bible passage text from ESV API (for blank study creation)."""
+    """Fetch Bible passage text from ESV API (for blank study creation or preview)."""
     try:
-        passage_text = await fetch_passage(req.reference)
+        passage_text = await fetch_passage(req.reference, req.include_headings)
         return {"passage_text": passage_text}
     except Exception as e:
         logger.error(f"Error fetching passage: {e}")

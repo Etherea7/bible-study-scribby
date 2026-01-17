@@ -73,18 +73,38 @@ BOOK_CHAPTERS = {book: chapters for book, chapters in BIBLE_BOOKS}
 BOOK_ORDER = {book: idx for idx, (book, _) in enumerate(BIBLE_BOOKS)}
 
 
-def get_reference(book: str, chapter: int, start_verse: int | None = None, end_verse: int | None = None) -> str:
+def get_reference(
+    book: str, 
+    chapter: int, 
+    start_verse: int | None = None, 
+    end_verse: int | None = None,
+    end_chapter: int | None = None
+) -> str:
     """
-    Format a passage reference.
+    Format a passage reference with support for cross-chapter ranges.
 
     Examples:
         get_reference("John", 1) -> "John 1"
         get_reference("John", 1, 1, 3) -> "John 1:1-3"
         get_reference("John", 1, 1) -> "John 1:1"
+        get_reference("John", 1, 1, 10, 2) -> "John 1:1-2:10"
     """
-    if start_verse is not None and end_verse is not None:
+    # Default end_chapter to start chapter if not provided
+    effective_end_chapter = end_chapter if end_chapter is not None else chapter
+    
+    # No verses specified
+    if start_verse is None:
+        if chapter == effective_end_chapter:
+            return f"{book} {chapter}"
+        return f"{book} {chapter}-{effective_end_chapter}"
+    
+    # Same chapter case
+    if chapter == effective_end_chapter:
+        if end_verse is None or end_verse == start_verse:
+            return f"{book} {chapter}:{start_verse}"
         return f"{book} {chapter}:{start_verse}-{end_verse}"
-    elif start_verse is not None:
-        return f"{book} {chapter}:{start_verse}"
-    else:
-        return f"{book} {chapter}"
+    
+    # Cross-chapter case
+    if end_verse is None:
+        return f"{book} {chapter}:{start_verse}-{effective_end_chapter}"
+    return f"{book} {chapter}:{start_verse}-{effective_end_chapter}:{end_verse}"

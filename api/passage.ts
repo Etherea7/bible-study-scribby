@@ -8,6 +8,10 @@ const ESV_API_URL = 'https://api.esv.org/v3/passage/text/';
  *
  * Fetch Bible passage text from ESV API.
  * Used when user doesn't have their own ESV API key configured.
+ * 
+ * Request body:
+ * - reference: string (required) - The passage reference
+ * - include_headings: boolean (optional, default: true) - Whether to include section headings
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Only allow POST
@@ -16,7 +20,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     try {
-        const { reference } = req.body;
+        const { reference, include_headings = true } = req.body;
 
         if (!reference || typeof reference !== 'string') {
             return res.status(400).json({ error: 'Missing required field: reference' });
@@ -29,13 +33,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             });
         }
 
+        // Convert include_headings to boolean if it's a string
+        const includeHeadings = include_headings === true || include_headings === 'true';
+
         const params = new URLSearchParams({
             q: reference,
-            'include-headings': 'true',
+            'include-headings': includeHeadings ? 'true' : 'false',
             'include-footnotes': 'false',
             'include-verse-numbers': 'true',
             'include-short-copyright': 'true',
-            'include-passage-references': 'true',
+            'include-passage-references': includeHeadings ? 'true' : 'false',
         });
 
         const response = await fetch(`${ESV_API_URL}?${params}`, {

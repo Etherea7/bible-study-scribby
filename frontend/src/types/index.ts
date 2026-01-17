@@ -38,6 +38,7 @@ export interface GenerateStudyRequest {
   book: string;
   chapter: number;
   start_verse?: number;
+  end_chapter?: number;  // Optional: defaults to same as chapter for backward compatibility
   end_verse?: number;
 }
 
