@@ -24,14 +24,43 @@ function generateId(): string {
   return crypto.randomUUID();
 }
 
+// Check if the study is already in editable format
+function isEditableStudy(study: Study | EditableStudyFull): study is EditableStudyFull {
+  // Check if it has the specific structure of an editable study
+  // Key indicators: study_flow items have 'questions' array instead of specific question fields
+  // OR application_questions contains objects instead of strings
+  if (study.study_flow.length > 0) {
+    return 'questions' in study.study_flow[0];
+  }
+  if (study.application_questions.length > 0) {
+    return typeof study.application_questions[0] !== 'string';
+  }
+  // Fallback if empty arrays (check for other fields if needed, or assume raw Study)
+  return 'isEdited' in study;
+}
+
 // Convert a Study to an EditableStudyFull
-function toEditableStudy(study: Study): EditableStudyFull {
+function toEditableStudy(study: Study | EditableStudyFull): EditableStudyFull {
+  // If it's already an editable study (e.g. from saved studies), return it directly
+  // We perform a shallow clone to avoid mutation issues
+  if (isEditableStudy(study)) {
+    return {
+      ...study,
+      // Reset these for a fresh session? Or keep them?
+      // When loading a saved study, we usually want to treat it as "saved" initially
+      // But the logic in useEffect below will set internal state. 
+      // Important: Ensure deep consistency if needed.
+    };
+  }
+
+  // Otherwise convert raw Study to EditableStudyFull
+  const rawStudy = study as Study;
   return {
     id: generateId(),
-    purpose: study.purpose,
-    context: study.context,
-    key_themes: [...study.key_themes],
-    study_flow: study.study_flow.map((item) => ({
+    purpose: rawStudy.purpose,
+    context: rawStudy.context,
+    key_themes: [...rawStudy.key_themes],
+    study_flow: rawStudy.study_flow.map((item) => ({
       id: generateId(),
       passage_section: item.passage_section,
       section_heading: item.section_heading,
@@ -51,18 +80,18 @@ function toEditableStudy(study: Study): EditableStudyFull {
       ],
       connection: item.connection,
     })),
-    summary: study.summary,
-    application_questions: study.application_questions.map((q) => ({
+    summary: rawStudy.summary,
+    application_questions: rawStudy.application_questions.map((q) => ({
       id: generateId(),
       type: 'application' as EditableQuestionType,
       question: q,
     })),
-    cross_references: study.cross_references.map((ref) => ({
+    cross_references: rawStudy.cross_references.map((ref) => ({
       id: generateId(),
       reference: ref.reference,
       note: ref.note,
     })),
-    prayer_prompt: study.prayer_prompt,
+    prayer_prompt: rawStudy.prayer_prompt,
     lastModified: new Date(),
     isEdited: false,
     isSaved: false,
@@ -117,10 +146,10 @@ interface UseEditableStudyResult {
 }
 
 export function useEditableStudy(
-  initialStudy: Study | null
+  initialStudy: Study | EditableStudyFull | null
 ): UseEditableStudyResult {
   const [study, setStudy] = useState<EditableStudyFull | null>(null);
-  const [originalStudy, setOriginalStudy] = useState<Study | null>(null);
+  const [originalStudy, setOriginalStudy] = useState<Study | EditableStudyFull | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Initialize editable study from initial study
@@ -221,12 +250,12 @@ export function useEditableStudy(
           study_flow: prev.study_flow.map((section) =>
             section.id === sectionId
               ? {
-                  ...section,
-                  questions: [
-                    ...section.questions,
-                    { id: generateId(), type, question, answer },
-                  ],
-                }
+                ...section,
+                questions: [
+                  ...section.questions,
+                  { id: generateId(), type, question, answer },
+                ],
+              }
               : section
           ),
           isEdited: true,
@@ -246,11 +275,11 @@ export function useEditableStudy(
           study_flow: prev.study_flow.map((section) =>
             section.id === sectionId
               ? {
-                  ...section,
-                  questions: section.questions.map((q) =>
-                    q.id === questionId ? { ...q, ...updates } : q
-                  ),
-                }
+                ...section,
+                questions: section.questions.map((q) =>
+                  q.id === questionId ? { ...q, ...updates } : q
+                ),
+              }
               : section
           ),
           isEdited: true,
@@ -269,9 +298,9 @@ export function useEditableStudy(
         study_flow: prev.study_flow.map((section) =>
           section.id === sectionId
             ? {
-                ...section,
-                questions: section.questions.filter((q) => q.id !== questionId),
-              }
+              ...section,
+              questions: section.questions.filter((q) => q.id !== questionId),
+            }
             : section
         ),
         isEdited: true,

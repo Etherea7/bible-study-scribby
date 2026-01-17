@@ -414,6 +414,7 @@ export function HomePage() {
             <PassageSelector
               onSubmit={handleGenerateStudy}
               loading={generateMutation.isPending}
+              hidePreview={!!currentStudy}
             />
           </CardContent>
         </Card>

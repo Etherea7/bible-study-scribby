@@ -205,8 +205,16 @@ export function EditableStudyGuide({
                     className="border border-[var(--border-color)] rounded-lg overflow-hidden"
                   >
                     {/* Section Header */}
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => toggleSection(section.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggleSection(section.id);
+                        }
+                      }}
                       className="
                         w-full flex items-center justify-between
                         px-4 py-3
@@ -214,6 +222,7 @@ export function EditableStudyGuide({
                         hover:bg-[var(--bg-surface)]
                         transition-colors
                         text-left
+                        cursor-pointer
                       "
                     >
                       <div className="flex items-center gap-3">
@@ -245,7 +254,7 @@ export function EditableStudyGuide({
                           </button>
                         )}
                       </div>
-                    </button>
+                    </div>
 
                     {/* Section Content */}
                     {isExpanded && (

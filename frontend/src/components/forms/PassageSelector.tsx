@@ -18,6 +18,7 @@ interface PassageSelectorProps {
     endVerse: number
   ) => void;
   loading?: boolean;
+  hidePreview?: boolean;  // Hide preview when study is already generated
   initialBook?: string;
   initialStartChapter?: number;
   initialStartVerse?: number;
@@ -28,6 +29,7 @@ interface PassageSelectorProps {
 export function PassageSelector({
   onSubmit,
   loading = false,
+  hidePreview = false,
   initialBook = 'John',
   initialStartChapter = 1,
   initialStartVerse = 1,
@@ -245,8 +247,8 @@ export function PassageSelector({
         </div>
       </div>
 
-      {/* Passage Preview */}
-      <PassagePreview range={passageRange} />
+      {/* Passage Preview - hidden when study is already generated */}
+      {!hidePreview && <PassagePreview range={passageRange} />}
 
       {error && (
         <p className="text-red-600 text-sm">{error}</p>

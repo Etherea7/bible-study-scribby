@@ -146,13 +146,24 @@ export function StudyGuide({ study, provider }: StudyGuideProps) {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {study.application_questions.map((question, index) => (
-                <QuestionCard
-                  key={index}
-                  type="application"
-                  question={question}
-                />
-              ))}
+              {study.application_questions.map((questionItem, index) => {
+                // Handle both string[] (from LLM) and EditableQuestion[] (from saved studies)
+                // Use type assertion for compatibility with both formats
+                const isObject = typeof questionItem === 'object' && questionItem !== null;
+                const questionText = isObject
+                  ? (questionItem as unknown as { question: string }).question
+                  : (questionItem as string);
+                const questionKey = isObject
+                  ? (questionItem as unknown as { id: string }).id
+                  : index;
+                return (
+                  <QuestionCard
+                    key={questionKey}
+                    type="application"
+                    question={questionText}
+                  />
+                );
+              })}
             </div>
           </CardContent>
         </Card>
