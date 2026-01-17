@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Moon, Sun, History, BookOpen, Settings, BookMarked } from 'lucide-react';
+import { Moon, Sun, History, Settings, BookMarked } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { ApiKeySettings } from '../settings/ApiKeySettings';

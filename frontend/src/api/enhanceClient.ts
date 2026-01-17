@@ -7,7 +7,7 @@
 
 import { callOpenRouter, LLMError } from './llmClient';
 import { getApiKeys } from '../hooks/useApiKeys';
-import type { EditableQuestion, EditableStudyFlowSection, EditableQuestionType } from '../types';
+import type { EditableStudyFlowSection, EditableQuestionType } from '../types';
 
 /**
  * Check if AI enhance is available (user has OpenRouter API key configured)

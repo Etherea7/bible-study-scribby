@@ -20,15 +20,17 @@ const ESV_API_URL = 'https://api.esv.org/v3/passage/text/';
  * Error class for LLM API errors
  */
 export class LLMError extends Error {
-  constructor(
-    message: string,
-    public readonly provider: string,
-    public readonly statusCode?: number
-  ) {
+  readonly provider: string;
+  readonly statusCode?: number;
+
+  constructor(message: string, provider: string, statusCode?: number) {
     super(message);
     this.name = 'LLMError';
+    this.provider = provider;
+    this.statusCode = statusCode;
   }
 }
+
 
 /**
  * Call OpenRouter API directly from the browser.

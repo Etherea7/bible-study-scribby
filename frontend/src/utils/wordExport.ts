@@ -13,9 +13,6 @@ import {
   AlignmentType,
   BorderStyle,
   Table,
-  TableCell,
-  TableRow,
-  WidthType,
 } from 'docx';
 import { saveAs } from 'file-saver';
 import type { EditableStudyFull } from '../types';

@@ -70,12 +70,17 @@ export function useStudyGeneration() {
 
         // Format the prompt and call OpenRouter
         const prompt = formatStudyPrompt(reference, passageText);
-        const study = await callOpenRouter(prompt, apiKeys.openrouterApiKey!);
+        const studyResult = await callOpenRouter(prompt, apiKeys.openrouterApiKey!);
+
+        // callOpenRouter returns Study | string, but for study generation we always expect Study
+        if (typeof studyResult === 'string') {
+          throw new Error('Unexpected string response from LLM');
+        }
 
         response = {
           reference,
           passage_text: passageText,
-          study,
+          study: studyResult,
           provider: 'openrouter (client)',
         };
       } else {

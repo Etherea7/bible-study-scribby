@@ -57,7 +57,8 @@ export function SavedPage() {
           setImportResult({
             success: false,
             imported: 0,
-            errors: [err.message],
+            skipped: 0,
+            errors: [{ index: -1, error: err.message }],
           });
         },
       });
@@ -152,11 +153,10 @@ export function SavedPage() {
 
         {/* Import Result Notification */}
         {importResult && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            importResult.imported > 0
+          <div className={`mb-6 p-4 rounded-lg border ${importResult.imported > 0
               ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
               : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
-          }`}>
+            }`}>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
                 {importResult.imported > 0 ? (
@@ -165,11 +165,10 @@ export function SavedPage() {
                   <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
                 )}
                 <div>
-                  <p className={`font-medium ${
-                    importResult.imported > 0
+                  <p className={`font-medium ${importResult.imported > 0
                       ? 'text-green-800 dark:text-green-200'
                       : 'text-red-800 dark:text-red-200'
-                  }`}>
+                    }`}>
                     {importResult.imported > 0
                       ? `Import Complete: ${importResult.imported} imported${importResult.skipped > 0 ? `, ${importResult.skipped} skipped` : ''}`
                       : 'Import Failed'
@@ -209,11 +208,10 @@ export function SavedPage() {
               </div>
               <button
                 onClick={dismissImportResult}
-                className={`text-sm ${
-                  importResult.imported > 0
+                className={`text-sm ${importResult.imported > 0
                     ? 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200'
                     : 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200'
-                }`}
+                  }`}
               >
                 Dismiss
               </button>
