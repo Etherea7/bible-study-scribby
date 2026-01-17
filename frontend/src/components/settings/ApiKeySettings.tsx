@@ -181,7 +181,7 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[60] bg-black/60"
             onClick={onClose}
           />
 
@@ -189,9 +189,10 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
           <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 pointer-events-none">
             <motion.div
               key="modal"
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
               className="bg-[var(--bg-elevated)] rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] flex flex-col pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
@@ -265,8 +266,8 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
                 <div className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg-surface)]">
                   <div
                     className={`w-2 h-2 rounded-full ${localKeys.esvApiKey && localKeys.openrouterApiKey
-                        ? 'bg-green-500'
-                        : 'bg-amber-500'
+                      ? 'bg-green-500'
+                      : 'bg-amber-500'
                       }`}
                   />
                   <span className="text-sm text-[var(--text-secondary)]">

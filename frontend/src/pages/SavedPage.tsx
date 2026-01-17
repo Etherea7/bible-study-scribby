@@ -154,20 +154,20 @@ export function SavedPage() {
         {/* Import Result Notification */}
         {importResult && (
           <div className={`mb-6 p-4 rounded-lg border ${importResult.imported > 0
-              ? 'bg-green-50 border-green-200 dark:bg-green-900/20 dark:border-green-800'
-              : 'bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-800'
+            ? 'bg-green-700 border-green-600 dark:bg-green-900/40 dark:border-green-700'
+            : 'bg-red-700 border-red-600 dark:bg-red-900/40 dark:border-red-700'
             }`}>
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-3">
                 {importResult.imported > 0 ? (
-                  <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+                  <CheckCircle className="h-5 w-5 text-white dark:text-green-300 mt-0.5" />
                 ) : (
-                  <XCircle className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+                  <XCircle className="h-5 w-5 text-white dark:text-red-300 mt-0.5" />
                 )}
                 <div>
                   <p className={`font-medium ${importResult.imported > 0
-                      ? 'text-green-800 dark:text-green-200'
-                      : 'text-red-800 dark:text-red-200'
+                    ? 'text-white dark:text-green-100'
+                    : 'text-white dark:text-red-100'
                     }`}>
                     {importResult.imported > 0
                       ? `Import Complete: ${importResult.imported} imported${importResult.skipped > 0 ? `, ${importResult.skipped} skipped` : ''}`
@@ -176,17 +176,17 @@ export function SavedPage() {
                   </p>
 
                   {importResult.imported > 0 && importResult.skipped === 0 && (
-                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                    <p className="text-sm text-green-100 dark:text-green-200 mt-1">
                       All {importResult.imported} {importResult.imported === 1 ? 'study was' : 'studies were'} imported successfully.
                     </p>
                   )}
 
                   {importResult.errors.length > 0 && (
                     <div className="mt-2">
-                      <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-1">
+                      <p className="text-sm font-medium text-amber-100 dark:text-amber-200 mb-1">
                         Issues encountered:
                       </p>
-                      <ul className="text-sm text-amber-700 dark:text-amber-300 list-disc list-inside space-y-1">
+                      <ul className="text-sm text-amber-100 dark:text-amber-200 list-disc list-inside space-y-1">
                         {importResult.errors.slice(0, 5).map((err, i) => (
                           <li key={i}>
                             {err.index >= 0 && (
@@ -197,7 +197,7 @@ export function SavedPage() {
                           </li>
                         ))}
                         {importResult.errors.length > 5 && (
-                          <li className="text-amber-600 dark:text-amber-400">
+                          <li className="text-amber-200 dark:text-amber-300">
                             ...and {importResult.errors.length - 5} more issues
                           </li>
                         )}
@@ -208,9 +208,9 @@ export function SavedPage() {
               </div>
               <button
                 onClick={dismissImportResult}
-                className={`text-sm ${importResult.imported > 0
-                    ? 'text-green-600 hover:text-green-800 dark:text-green-400 dark:hover:text-green-200'
-                    : 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-200'
+                className={`text-sm font-medium ${importResult.imported > 0
+                  ? 'text-green-100 hover:text-white dark:text-green-300 dark:hover:text-green-100'
+                  : 'text-red-100 hover:text-white dark:text-red-300 dark:hover:text-red-100'
                   }`}
               >
                 Dismiss
@@ -220,8 +220,8 @@ export function SavedPage() {
         )}
 
         {/* Info Box */}
-        <div className="mb-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700">
-          <p className="text-sm text-blue-900 dark:text-blue-100">
+        <div className="mb-6 p-4 rounded-lg bg-blue-700 dark:bg-blue-900/40 border border-blue-600 dark:border-blue-700">
+          <p className="text-sm text-white dark:text-blue-100 font-medium">
             <strong>Tip:</strong> Export your saved studies as JSON to transfer them to other browsers or devices.
             Use Import to restore previously exported studies.
           </p>
