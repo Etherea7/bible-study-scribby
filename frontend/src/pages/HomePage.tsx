@@ -536,12 +536,12 @@ export function HomePage() {
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <div className="mb-4 text-sm text-[var(--text-muted)] flex items-center gap-2">
+            {/* <div className="mb-4 text-sm text-[var(--text-muted)] flex items-center gap-2">
               <span>Drag columns to reorder</span>
               <span className="text-xs">
                 ({columnOrder.map((id) => COLUMN_LABELS[id]).join(' | ')})
               </span>
-            </div>
+            </div> */}
             <SortableContext
               items={columnOrder}
               strategy={horizontalListSortingStrategy}
