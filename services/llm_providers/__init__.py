@@ -67,8 +67,14 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    async def generate_study(self, reference: str, passage_text: str) -> dict:
-        """Generate a Bible study for the given passage."""
+    async def generate_study(self, reference: str, passage_text: str, model_override: Optional[str] = None) -> dict:
+        """Generate a Bible study for the given passage.
+
+        Args:
+            reference: Bible reference string
+            passage_text: The passage text
+            model_override: Optional model ID to use instead of default
+        """
         pass
 
     def _get_system_message(self) -> str:

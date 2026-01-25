@@ -13,3 +13,4 @@
 # Small UI changes 
 1. Dont need the Drag Columns to reorder
 2. Verses in PassageDisplay have the wrong regex, also need to parse the range of verses correctly. Need to prompt with the esv api output for AI to parse it properly
+3. Revamp UI so that its more centred on being a bible study editor

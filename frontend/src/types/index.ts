@@ -40,6 +40,8 @@ export interface GenerateStudyRequest {
   start_verse?: number;
   end_chapter?: number;  // Optional: defaults to same as chapter for backward compatibility
   end_verse?: number;
+  provider?: string;  // Optional: override provider selection (openrouter, anthropic, google)
+  model?: string;  // Optional: override model selection
 }
 
 // Database types
@@ -120,6 +122,7 @@ export interface EditableStudyFull {
   application_questions: EditableQuestion[];
   cross_references: EditableCrossReference[];
   prayer_prompt: string;
+  studyNotes?: string;  // Study-level notes/outline for the entire passage
   lastModified?: Date;
   isEdited?: boolean;
   isSaved?: boolean;  // Whether saved to history
@@ -193,15 +196,77 @@ export interface UserPreference {
 }
 
 // API Key settings for client-side LLM calls
-export type LLMProvider = 'openrouter' | 'groq' | 'gemini' | 'claude' | 'auto';
+export type LLMProvider = 'openrouter' | 'anthropic' | 'google' | 'auto';
+
+// Model configuration for each provider
+export interface ModelConfig {
+  id: string;
+  name: string;
+  description?: string;
+  isFree?: boolean;
+}
+
+// Available models per provider
+export const PROVIDER_MODELS: Record<Exclude<LLMProvider, 'auto'>, ModelConfig[]> = {
+  openrouter: [
+    { id: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2 3B (Free)', description: 'Fast, free model', isFree: true },
+    { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', description: 'Larger free model', isFree: true },
+    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', description: 'Fast Google model via OpenRouter' },
+    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', description: 'Best for reasoning' },
+    { id: 'openai/gpt-4o', name: 'GPT-4o', description: 'OpenAI flagship model' },
+  ],
+  anthropic: [
+    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'Latest Claude model' },
+    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'Great for reasoning' },
+    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', description: 'Fast and efficient' },
+  ],
+  google: [
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Fast and capable' },
+    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Most capable' },
+    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Balanced speed/quality' },
+  ],
+};
+
+// Default models per provider
+export const DEFAULT_MODELS: Record<Exclude<LLMProvider, 'auto'>, string> = {
+  openrouter: 'meta-llama/llama-3.2-3b-instruct:free',
+  anthropic: 'claude-sonnet-4-20250514',
+  google: 'gemini-2.0-flash',
+};
+
+// Provider metadata for UI display
+export const PROVIDER_INFO: Record<Exclude<LLMProvider, 'auto'>, { name: string; description: string; corsEnabled: boolean }> = {
+  openrouter: {
+    name: 'OpenRouter',
+    description: 'Access multiple models via one API. CORS-enabled for client-side calls.',
+    corsEnabled: true,
+  },
+  anthropic: {
+    name: 'Anthropic',
+    description: 'Claude models. Requires server proxy (no CORS).',
+    corsEnabled: false,
+  },
+  google: {
+    name: 'Google AI',
+    description: 'Gemini models. Requires server proxy (no CORS).',
+    corsEnabled: false,
+  },
+};
+
+// Per-provider model selection
+export interface ProviderModelSelection {
+  openrouter?: string;
+  anthropic?: string;
+  google?: string;
+}
 
 export interface ApiKeySettings {
   esvApiKey?: string;
   openrouterApiKey?: string;
-  groqApiKey?: string;
-  geminiApiKey?: string;
   anthropicApiKey?: string;
+  googleApiKey?: string;
   preferredProvider: LLMProvider;
+  selectedModels: ProviderModelSelection;
 }
 
 // Edited study storage

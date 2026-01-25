@@ -29,10 +29,13 @@ class OpenRouterProvider(LLMProvider):
         """Check if OpenRouter API key is configured."""
         return bool(OPENROUTER_API_KEY)
 
-    async def generate_study(self, reference: str, passage_text: str) -> dict:
+    async def generate_study(self, reference: str, passage_text: str, model_override: str = None) -> dict:
         """Generate a Bible study using OpenRouter."""
         if not self.is_available():
             return create_error_study("OpenRouter API key not configured")
+
+        # Use model override if provided, otherwise use default
+        effective_model = model_override or self.model
 
         try:
             prompt = format_study_prompt(reference, passage_text)
@@ -45,7 +48,7 @@ class OpenRouterProvider(LLMProvider):
             }
 
             payload = {
-                "model": self.model,
+                "model": effective_model,
                 "messages": [
                     {
                         "role": "system",

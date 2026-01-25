@@ -16,6 +16,7 @@ interface EditableThemeListProps {
   onUpdate: (index: number, value: string) => void;
   onRemove: (index: number) => void;
   onAdd: (theme: string) => void;
+  compact?: boolean; // Smaller layout for side panels
 }
 
 export function EditableThemeList({
@@ -23,6 +24,7 @@ export function EditableThemeList({
   onUpdate,
   onRemove,
   onAdd,
+  compact = false,
 }: EditableThemeListProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
@@ -87,8 +89,16 @@ export function EditableThemeList({
     }
   };
 
+  const inputClasses = compact
+    ? 'px-2 py-0.5 text-xs'
+    : 'px-3 py-1 text-sm';
+
+  const badgeClasses = compact
+    ? 'text-xs px-2 py-0.5'
+    : '';
+
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={clsx('flex flex-wrap', compact ? 'gap-1.5' : 'gap-2')}>
       {themes.map((theme, index) => (
         <div key={index}>
           {editingIndex === index ? (
@@ -99,21 +109,21 @@ export function EditableThemeList({
               onChange={(e) => setEditValue(e.target.value)}
               onBlur={saveEdit}
               onKeyDown={handleEditKeyDown}
-              className="
-                px-3 py-1
-                text-sm
-                bg-[var(--bg-elevated)]
+              className={clsx(
+                inputClasses,
+                `bg-[var(--bg-elevated)]
                 border border-[var(--color-interpretation)]
                 rounded-full
-                focus:outline-none focus:ring-2 focus:ring-[var(--color-interpretation)]/30
-              "
+                focus:outline-none focus:ring-2 focus:ring-[var(--color-interpretation)]/30`
+              )}
             />
           ) : (
             <span
               className={clsx(
                 'theme-badge group cursor-pointer',
                 'hover:bg-[var(--color-interpretation)]/20',
-                'flex items-center gap-1'
+                'flex items-center gap-1',
+                badgeClasses
               )}
               onClick={() => startEditing(index)}
             >
@@ -126,7 +136,7 @@ export function EditableThemeList({
                 className="opacity-0 group-hover:opacity-100 transition-opacity ml-1"
                 aria-label={`Remove ${theme}`}
               >
-                <X className="h-3 w-3" />
+                <X className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
               </button>
             </span>
           )}
@@ -149,33 +159,31 @@ export function EditableThemeList({
           }}
           onKeyDown={handleAddKeyDown}
           placeholder="New theme..."
-          className="
-            px-3 py-1
-            text-sm
-            bg-[var(--bg-elevated)]
+          className={clsx(
+            inputClasses,
+            `bg-[var(--bg-elevated)]
             border border-dashed border-[var(--border-color)]
             rounded-full
             focus:outline-none focus:ring-2 focus:ring-[var(--color-interpretation)]/30
-            focus:border-[var(--color-interpretation)]
-          "
+            focus:border-[var(--color-interpretation)]`
+          )}
         />
       ) : (
         <button
           onClick={() => setIsAdding(true)}
-          className="
-            px-3 py-1
-            text-sm
-            border border-dashed border-[var(--border-color)]
+          className={clsx(
+            inputClasses,
+            `border border-dashed border-[var(--border-color)]
             rounded-full
             text-[var(--text-muted)]
             hover:border-[var(--color-interpretation)]
             hover:text-[var(--color-interpretation)]
             transition-colors
-            flex items-center gap-1
-          "
+            flex items-center gap-1`
+          )}
         >
-          <Plus className="h-3 w-3" />
-          Add Theme
+          <Plus className={compact ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+          {compact ? 'Add' : 'Add Theme'}
         </button>
       )}
     </div>

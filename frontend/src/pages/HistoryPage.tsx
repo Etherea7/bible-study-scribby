@@ -82,7 +82,7 @@ export function HistoryPage() {
           <div className="flex items-center gap-4">
             <Link to="/" className="btn-back">
               <ArrowLeft className="h-4 w-4" />
-              Back to Study
+              Back to Home
             </Link>
             <div>
               <h1 className="text-2xl font-bold text-[var(--text-primary)] font-serif">
@@ -255,7 +255,7 @@ export function HistoryPage() {
                     </div>
                     <div className="flex gap-2 opacity-70 group-hover:opacity-100 transition-opacity">
                       <Link
-                        to={`/?ref=${encodeURIComponent(item.reference)}`}
+                        to={`/editor?ref=${encodeURIComponent(item.reference)}`}
                       >
                         <Button variant="secondary" size="sm">
                           View

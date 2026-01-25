@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { BookSearchCombobox } from './BookSearchCombobox';
 import { PassagePreview } from './PassagePreview';
@@ -17,8 +17,16 @@ interface PassageSelectorProps {
     endChapter: number,
     endVerse: number
   ) => void;
+  onChange?: (
+    book: string,
+    startChapter: number,
+    startVerse: number,
+    endChapter: number,
+    endVerse: number
+  ) => void;  // Called when selection changes (useful when hideSubmitButton is true)
   loading?: boolean;
   hidePreview?: boolean;  // Hide preview when study is already generated
+  hideSubmitButton?: boolean;  // Hide submit button when used in wizard context
   initialBook?: string;
   initialStartChapter?: number;
   initialStartVerse?: number;
@@ -26,10 +34,12 @@ interface PassageSelectorProps {
   initialEndVerse?: number;
 }
 
-export function PassageSelector({
+export const PassageSelector = memo(function PassageSelector({
   onSubmit,
+  onChange,
   loading = false,
   hidePreview = false,
+  hideSubmitButton = false,
   initialBook = 'John',
   initialStartChapter = 1,
   initialStartVerse = 1,
@@ -95,7 +105,14 @@ export function PassageSelector({
     }
   }, [book, startChapter, endChapter, startVerse]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Call onChange when selection changes (useful when hideSubmitButton is true)
+  useEffect(() => {
+    if (onChange && validateCrossChapterRange(passageRange)) {
+      onChange(book, startChapter, startVerse, endChapter, endVerse);
+    }
+  }, [book, startChapter, startVerse, endChapter, endVerse, onChange, passageRange]);
+
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -106,9 +123,9 @@ export function PassageSelector({
     }
 
     onSubmit(book, startChapter, startVerse, endChapter, endVerse);
-  };
+  }, [passageRange, onSubmit, book, startChapter, startVerse, endChapter, endVerse]);
 
-  const handleBookChange = (newBook: string) => {
+  const handleBookChange = useCallback((newBook: string) => {
     setBook(newBook);
     // Reset to reasonable defaults when book changes
     setStartChapter(1);
@@ -116,7 +133,7 @@ export function PassageSelector({
     setEndChapter(1);
     const firstChapterVerses = getVerseCount(newBook, 1);
     setEndVerse(Math.min(18, firstChapterVerses));
-  };
+  }, []);
 
   const selectBaseClasses = `
     w-full px-3 py-2.5
@@ -254,18 +271,20 @@ export function PassageSelector({
         <p className="text-red-600 text-sm">{error}</p>
       )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="btn-generate w-full md:w-auto"
-      >
-        {loading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
-        ) : (
-          <Sparkles className="h-5 w-5 sparkle-icon" />
-        )}
-        {loading ? 'Generating...' : 'Generate Study Guide'}
-      </button>
+      {!hideSubmitButton && (
+        <button
+          type="submit"
+          disabled={loading}
+          className="btn-generate w-full md:w-auto"
+        >
+          {loading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Sparkles className="h-5 w-5 sparkle-icon" />
+          )}
+          {loading ? 'Generating...' : 'Generate Study Guide'}
+        </button>
+      )}
     </form>
   );
-}
+});

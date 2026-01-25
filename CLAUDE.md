@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Daily Bible Study - A full-stack application with a React frontend and FastAPI backend that generates AI-powered expository Bible study guides. Users can select any book, chapter, and verse range to generate an in-depth study with context, themes, sample answers to observation/interpretation questions, selective cross-references, and prayer prompts.
+Bible Study Scribby - A full-stack application with a React frontend and FastAPI backend that helps users craft AI-powered expository Bible study guides. The app has been refocused from a pure "generator" to an "AI-enhanced editor" experience where users can:
+- Select any book, chapter, and verse range
+- Generate AI-powered studies or start from blank templates
+- Edit all content in a professional workspace layout
+- Use AI assistance for drafting, rephrasing, and enhancement
 
 ## Development Commands
 
@@ -20,7 +24,7 @@ cd frontend && npm install
 cp .env.example .env
 # Edit .env with your API keys:
 # - ESV_API_KEY from https://api.esv.org/
-# - GROQ_API_KEY, OPENROUTER_API_KEY, GEMINI_API_KEY, ANTHROPIC_API_KEY for LLM providers
+# - OPENROUTER_API_KEY, GOOGLE_API_KEY, ANTHROPIC_API_KEY for LLM providers
 ```
 
 ### Running the Application
@@ -43,28 +47,22 @@ cd frontend && npm run dev
 **main.py**
 - FastAPI application with API routes:
   - `GET /` - Health check / default study
-  - `POST /api/generate` - Generate study for verse range (returns JSON)
+  - `POST /api/generate` - Generate study for verse range (accepts `provider` and `model` params)
   - `GET /api/providers` - Check available LLM provider status
-  - `POST /api/passage` - Fetch passage text from server's ESV API (for blank study creation when user lacks API key)
+  - `POST /api/passage` - Fetch passage text from server's ESV API
 
 **services/llm_router.py**
 - Multi-provider LLM orchestration with automatic fallback:
-  - Groq (primary, free) → OpenRouter → Gemini → Claude (paid)
-- Each provider has its own module in `services/providers/`
+  - Groq → OpenRouter → Gemini → Claude
+- Accepts `requested_provider` and `requested_model` parameters
+- Maps frontend provider names to backend names (anthropic→claude, google→gemini)
+
+**services/llm_providers/**
+- Each provider accepts `model_override` parameter in `generate_study()`
+- Providers: `groq_provider.py`, `openrouter_provider.py`, `gemini_provider.py`, `claude_provider.py`
 
 **services/prompts/study_prompt.py**
-- `STUDY_PROMPT` - Unified study generation prompt with optional flow context
-- `format_study_prompt(reference, passage_text, flow_context?)` - Single formatter function
-- **Doctrinal guardrails** for Reformed Christian theology:
-  - Trinity, Total Depravity, Unconditional Election
-  - Substitutionary Atonement, Salvation by Grace through Faith
-  - Scripture Authority, Perseverance of Saints
-- Handling ambiguous passages: focus on concrete text, note debates
-- Flow context: When provided, adds instructions for custom question generation per section
-
-**services/esv_api.py**
-- Fetches passage text from ESV API
-- Returns formatted error messages if API key missing
+- Unified study generation prompt with doctrinal guardrails (Reformed theology)
 
 ### Frontend (React)
 
@@ -74,550 +72,290 @@ cd frontend && npm run dev
 - Dexie.js (IndexedDB) for client-side persistence
 - Tailwind CSS for styling
 - Framer Motion for animations
-- @dnd-kit for drag-and-drop
 - Zod for JSON validation
 
 **Directory Structure**
 ```
 frontend/src/
 ├── api/
-│   ├── studyApi.ts        # Backend API calls (generateStudy, getProviders, fetchPassageFromServer)
-│   ├── llmClient.ts       # Direct OpenRouter/ESV API calls (client-side)
-│   └── enhanceClient.ts   # AI enhancement functions (rephrase, shorten, enhance)
+│   ├── studyApi.ts          # Backend API calls
+│   ├── llmClient.ts         # Direct OpenRouter/ESV API calls (client-side)
+│   ├── enhanceClient.ts     # AI enhancement functions
+│   └── unifiedAIService.ts  # Centralized AI service for all providers
 ├── components/
-│   ├── forms/        # PassageSelector, BookSearchCombobox, PassagePreview
-│   ├── layout/       # Header, DraggableColumn
-│   ├── settings/
-│   │   └── ApiKeySettings.tsx  # API key configuration modal
-│   ├── study/        # PassageDisplay, StudyGuide, StudyFlowEditor, QuestionCard
-│   │   ├── EditableStudyGuide.tsx  # Full editable study component
-│   │   ├── EditableQuestionCard.tsx # Sortable question with CRUD + AI enhance
-│   │   ├── SortableQuestionList.tsx # Drag-drop question reordering
-│   │   ├── EditableThemeList.tsx   # Theme badge management
-│   │   ├── EditableCrossReferences.tsx # Cross-reference CRUD
-│   │   └── AddQuestionButton.tsx   # Add O/I/F/A questions
-│   └── ui/           # Button, Card, LoadingSpinner, EditableTextField, FloatingToolbar
+│   ├── editor/              # Workspace editor components (NEW)
+│   │   ├── WorkspaceEditor.tsx    # Main split-view layout
+│   │   ├── PassagePanel.tsx       # Sticky passage display
+│   │   ├── StudyContentPanel.tsx  # Document-style editor
+│   │   └── MagicDraftButton.tsx   # AI draft button
+│   ├── forms/               # PassageSelector, BookSearchCombobox, PassagePreview
+│   ├── layout/              # Header
+│   ├── settings/            # ApiKeySettings modal with model selection
+│   ├── study/               # Study display components
+│   ├── ui/                  # Button, Card, FloatingToolbar, etc.
+│   └── wizard/              # CreateStudyWizard (NEW)
 ├── db/
-│   └── index.ts      # Dexie database (v3 schema)
+│   └── index.ts             # Dexie database (v3 schema)
 ├── hooks/
-│   ├── useHistory.ts       # History CRUD + import/export
-│   ├── useSavedStudies.ts  # Saved studies CRUD + import/export
-│   ├── useStudyGeneration.ts # Hybrid client/server generation
-│   ├── useEditableStudy.ts # Full CRUD for editable study state
-│   ├── useApiKeys.ts       # API key storage in IndexedDB
-│   ├── useBeforeUnload.ts  # Warn on unsaved changes
-│   └── useDarkMode.ts
+│   ├── useApiKeys.ts        # API key + model selection storage
+│   ├── useStudyGeneration.ts # Uses UnifiedAIService
+│   ├── useEditableStudy.ts  # Full CRUD for editable study state
+│   ├── useSavedStudies.ts   # Saved studies CRUD
+│   └── ...
 ├── pages/
-│   ├── HomePage.tsx   # 3-column drag-drop layout with save bar at bottom
-│   ├── SavedPage.tsx  # Saved studies list with JSON import/export
-│   └── HistoryPage.tsx # History list with import/export
+│   ├── LandingPage.tsx      # NEW entry point at "/"
+│   ├── HomePage.tsx         # Editor page at "/editor"
+│   ├── SavedPage.tsx        # Saved studies list at "/saved"
+│   └── HistoryPage.tsx      # History list at "/history"
 ├── types/
-│   └── index.ts       # TypeScript interfaces
+│   └── index.ts             # TypeScript interfaces (provider/model types)
 └── utils/
-    ├── bibleData.ts      # Book/chapter/verse validation, cross-chapter range utilities
-    ├── formatReference.ts # Format/parse Bible references (cross-chapter support)
-    ├── validation.ts     # Zod schemas for import validation (strict mode)
-    ├── normalizeStudy.ts # Normalize studies for export (ensure all keys present)
-    ├── studyPrompt.ts    # TypeScript port of study prompt
-    ├── blankStudy.ts     # Create blank study templates
-    └── wordExport.ts     # Export studies to Word documents
+    └── ...
 ```
+
+### Routing Structure
+
+| Route | Component | Description |
+|-------|-----------|-------------|
+| `/` | `LandingPage` | Welcome page with hero, "Create New Study" button, recent studies grid |
+| `/editor` | `HomePage` | Workspace editor with split view (Passage | Study) |
+| `/editor?saved=id` | `HomePage` | Load saved study by ID |
+| `/editor?ref=ref` | `HomePage` | Load from history by reference |
+| `/saved` | `SavedPage` | List of saved studies |
+| `/history` | `HistoryPage` | Generation history |
 
 ### Key Components
 
-**HomePage.tsx**
-- 3-column modular dashboard with drag-and-drop reordering:
-  - Scripture (passage text)
-  - Study Flow (section overview with editable purposes)
-  - Study Guide (fully editable questions and answers)
-- Column order persisted to Dexie userPreferences
-- Discernment disclaimer at top
-- **History/Saved viewing**: Uses `useSearchParams` to load studies from `?ref=` (history) or `?saved=` (saved studies) URL params
-- **New Blank Study**: "New Blank Study" button opens modal to create manual study with ESV passage fetching
-- **Provider badge**: Shows below columns (at bottom of column area, aligned right)
-- **Save bar** (positioned at bottom, after columns):
-  - Export to Word button
-  - Unsaved changes indicator (amber)
-  - Validation error indicator (red)
-  - Saved indicator (green)
-  - Discard button (reset to original)
-  - Save Study button (saves to Saved Studies, NOT History)
-- **Keyboard shortcuts**: Ctrl+S to save
-- **Before unload warning** when unsaved changes exist
-- **Dev logging**: Console logs show provider for generated/loaded studies
+**LandingPage.tsx** (NEW - Entry Point)
+- Hero section with "Craft Your Bible Study" title
+- Primary CTA: "Create New Study" button (opens wizard)
+- Recent Studies grid showing 4 most recent saved studies
+- Premium aesthetics with Framer Motion animations
 
-**Header.tsx**
-- Saved navigation link (to /saved)
-- History navigation link (to /history)
-- Settings icon (gear) opens API key configuration modal with disclaimer
-- Dark mode toggle
+**CreateStudyWizard.tsx** (NEW - 3-Step Creation Flow)
+- Step 1: Select passage (uses PassageSelector)
+- Step 2: Verify & preview (PassagePreview, optional context input)
+- Step 3: Choose method ("Start Blank" or "Generate with AI")
+- Modal overlay with progress indicator
 
-**PassageSelector.tsx**
-- Passage selection form with cross-chapter range support
-- **BookSearchCombobox**: Typeahead search for book selection
-  - Fuzzy matching with keyboard navigation
-  - Grouped by Old Testament / New Testament
-  - Shows chapter count per book
-- **Cross-chapter ranges**: FROM/TO selector layout
-  - Select start chapter + verse and end chapter + verse
-  - Supports ranges like "John 1:1-2:10" for expository study
-  - Smart defaults and automatic constraint validation
-- **PassagePreview**: Live passage preview panel
-  - Debounced API calls (500ms) when selection changes
-  - Shows verse count and full passage text
-  - Collapsible with loading/error states
-  - Uses client-side ESV API if key configured, else server fallback
+**WorkspaceEditor.tsx** (NEW - Split View Layout)
+- Two-panel split view: Passage (left) | Study Content (right)
+- Responsive: side-by-side on desktop, stacked on mobile
+- Collapsible passage panel
 
-**StudyFlowEditor.tsx**
-- Displays study sections with expandable details
-- Editable section purposes for custom AI generation context
-- Shows question counts per section
+**PassagePanel.tsx** (NEW)
+- Displays Bible passage text with verse formatting
+- Sticky positioning (always visible while scrolling)
+- Text selection triggers FloatingToolbar with passage actions
 
-**EditableStudyGuide.tsx**
-- Full editable study component replacing StudyGuide in edit mode
-- All fields editable: Purpose, Context, Summary, Prayer Prompt
-- Required field validation for Purpose and Context (cannot be empty)
-- **AI FloatingToolbar**: Select text (10+ chars) in Purpose/Context/Summary/Prayer fields to show rephrase/shorten options
-- EditableThemeList for theme badges (add/edit/remove)
-- **Section management**: Add/remove study flow sections, edit passage references and headings
-- SortableQuestionList per section (drag-drop reordering)
-- AddQuestionButton with type selector (O/I/F/A)
-- EditableCrossReferences for cross-reference CRUD
+**StudyContentPanel.tsx** (NEW)
+- Document-style layout for all study fields
+- All fields editable: Purpose, Context, Themes, Study Flow, Summary, etc.
+- MagicDraftButton for AI-assisted content generation
+- Section management (add/remove/collapse)
+- **Free-Write Notes**: Each section has a "Your Notes & Outline" textarea for personal study
+- **Notes-Guided Generation**: When generating questions, user can use their notes to guide AI
 
-**EditableQuestionCard.tsx**
-- Drag handle for reordering within section
-- Delete button (trash icon)
-- **AI Enhance button** (sparkles icon) - requires OpenRouter API key
-- Question type dropdown (Observation/Interpretation/Feeling/Application)
-- Click to edit question/answer inline
-- Debounced save (500ms)
+**FloatingToolbar.tsx** (Enhanced - Dual Mode)
+- **Edit mode**: Rephrase, Shorten (for editable text fields)
+- **Passage mode**: Explain, Cross-Reference (for selected Bible text)
 
-**QuestionCard.tsx** (read-only mode)
-- Displays observation/interpretation/application questions
-- Collapsible sample answers
+**ApiKeySettings.tsx** (Enhanced)
+- Provider selection: OpenRouter, Anthropic, Google, Auto
+- Model selection dropdown per provider
+- Migration support for old settings format
 
-**SavedPage.tsx** (route: /saved)
-- Lists all user-saved studies with full content
-- Each study shows reference, provider, saved date
-- "View" button loads study into HomePage (via `?saved=` param)
-- "Delete" button removes individual study
-- Import/Export JSON functionality (exports savedStudies array)
-- Clear all with confirmation
+### Provider & Model System
 
-**HistoryPage.tsx**
-- Lists all generated studies (lightweight metadata only)
-- Import/Export JSON functionality with validation
-- Clear all with confirmation
+**Available Providers:**
+```typescript
+type LLMProvider = 'openrouter' | 'anthropic' | 'google' | 'auto';
+```
+
+**Model Configuration:**
+```typescript
+// OpenRouter models
+'meta-llama/llama-3.2-3b-instruct:free' (default, free)
+'meta-llama/llama-3.3-70b-instruct:free'
+'anthropic/claude-3.5-sonnet'
+'openai/gpt-4o'
+
+// Anthropic models
+'claude-sonnet-4-20250514' (default)
+'claude-3-5-sonnet-20241022'
+'claude-3-5-haiku-20241022'
+
+// Google models
+'gemini-2.0-flash' (default)
+'gemini-1.5-pro'
+'gemini-1.5-flash'
+```
+
+**UnifiedAIService** (`unifiedAIService.ts`)
+- Central service for all AI operations
+- Routes between client-side (OpenRouter via CORS) and server-side
+- Methods: `generateStudy()`, `fetchPassage()`, `getEffectiveConfig()`
 
 ### Database Schema (Dexie v3)
 
 ```typescript
 // IndexedDB tables
-readingHistory: '++id, reference, timestamp'  // Auto-increment ID
-cachedPassages: 'reference'                    // ESV API cache
-cachedStudies: 'reference'                     // LLM response cache
-editedStudies: 'id, reference, lastModified'  // User modifications
-userPreferences: 'key'                         // Settings (column order, etc.)
-savedStudies: 'id, reference, savedAt'        // User-saved studies with full content
-```
-
-**SavedStudyRecord** (for saved studies)
-```typescript
-interface SavedStudyRecord {
-  id: string;                    // UUID
-  reference: string;             // e.g., "John 1:1-18"
-  passageText: string;           // ESV passage text
-  study: EditableStudyFull;      // Full editable study content
-  provider?: string;             // Which LLM generated it
-  savedAt: Date;                 // When saved
-}
+readingHistory: '++id, reference, timestamp'
+cachedPassages: 'reference'
+cachedStudies: 'reference'
+editedStudies: 'id, reference, lastModified'
+userPreferences: 'key'  // Stores API keys, model selections
+savedStudies: 'id, reference, savedAt'
 ```
 
 ### Data Types
 
-**Study** (from LLM)
+**ApiKeySettings** (Updated)
 ```typescript
-interface Study {
-  purpose: string;           // Action-focused purpose statement
-  context: string;           // Historical/cultural background
-  key_themes: string[];      // Theme tags
-  study_flow: StudyFlowItem[];  // Sections with questions
-  summary: string;           // Main takeaway
-  application_questions: string[];  // Personal reflection (no answers)
-  cross_references: CrossReference[];  // Related passages
-  prayer_prompt: string;     // Prayer direction
-}
-
-interface StudyFlowItem {
-  passage_section: string;       // e.g., "John 1:1-3"
-  section_heading: string;       // Section title
-  observation_question: string;  // What does text say?
-  observation_answer: string;    // Model answer
-  interpretation_question: string;  // What does it mean?
-  interpretation_answer: string;    // Model answer
-  connection?: string;           // Bridge to next section
+interface ApiKeySettings {
+  esvApiKey?: string;
+  openrouterApiKey?: string;
+  anthropicApiKey?: string;
+  googleApiKey?: string;
+  preferredProvider: LLMProvider;
+  selectedModels: {
+    openrouter?: string;
+    anthropic?: string;
+    google?: string;
+  };
 }
 ```
 
-**GenerateStudyRequest** (API request with cross-chapter support)
+**GenerateStudyRequest** (Updated)
 ```typescript
 interface GenerateStudyRequest {
   book: string;
-  chapter: number;              // Start chapter
+  chapter: number;
   start_verse?: number;
-  end_chapter?: number;         // Optional: for cross-chapter ranges (e.g., John 1:1-2:10)
+  end_chapter?: number;
   end_verse?: number;
+  provider?: string;  // Optional: override provider
+  model?: string;     // Optional: override model
 }
 ```
 
-**EditableStudyFull** (for full user modifications)
+## Key Design Decisions
+
+1. **Landing Page First**: New "/" route is a welcoming landing page, editor moved to "/editor"
+2. **Creation Wizard**: 3-step flow guides users through passage selection and creation method
+3. **Workspace Layout**: Split view with sticky passage panel replaces 3-column drag-drop
+4. **Provider Agnostic**: Unified service handles OpenRouter (CORS), Anthropic, Google
+5. **Model Selection**: Users can choose specific models per provider
+6. **Client-Side First**: OpenRouter preferred for CORS support, server fallback for others
+7. **AI Tools**: Magic draft buttons, text selection toolbar, question enhancement
+8. **Migration Support**: Old settings automatically migrated to new format
+
+## Client-Side Architecture
+
+**Generation Flow:**
+1. Check if ESV + OpenRouter keys configured
+2. If yes: Client-side generation via UnifiedAIService
+3. If no: Fall back to backend `/api/generate`
+4. Provider/model preferences sent to backend when using server-side
+
+**AI Enhancement:**
+- Requires OpenRouter API key
+- FloatingToolbar: Select text → Rephrase/Shorten (edit mode) or Explain/Cross-Ref (passage mode)
+- MagicDraftButton: Generate content for empty sections
+- Question enhancement: Sparkles button on each question card
+
+**Notes-Guided Generation:**
+- Each study section has a "Your Notes & Outline" textarea for free-form notes
+- Users can write down observations, main points, or outlines during self-study
+- When generating questions, user is prompted to use their notes
+- Notes are validated for relevance using AI before being used in generation
+- Validation checks: relevance to passage, theological consistency, usefulness for question generation
+- User can override validation and use notes anyway, or generate without notes
+- Notes are stored per-section in `EditableStudyFlowSection.userNotes`
+
+## Testing Checklist
+
+### Landing Page & Wizard
+1. Landing page loads at "/"
+2. "Create New Study" opens wizard modal
+3. Step 1: Passage selector works with defaults
+4. Step 2: Preview shows passage text
+5. Step 3: Both "Start Blank" and "Generate" options work
+6. Navigation to /editor with study data
+
+### Workspace Editor
+1. Split view renders (Passage left, Study right)
+2. Passage panel is sticky when scrolling
+3. Collapse/expand passage panel works
+4. All study fields are editable
+5. Section add/remove works
+6. Save bar functions correctly
+
+### AI Tools
+1. Select text in passage → toolbar with Explain/Cross-Ref
+2. Select text in editable field → toolbar with Rephrase/Shorten
+3. Magic draft buttons appear on empty sections
+4. Question enhancement (sparkles) works
+
+### Notes-Guided Generation
+1. Each section shows "Your Notes & Outline" textarea
+2. Typing notes updates section state
+3. Clicking "Draft Observations/Interpretations" with notes → prompts "Use your notes?"
+4. Choosing "Yes" validates notes relevance before generation
+5. If notes irrelevant (score < 40), warning shown with options
+6. Generated questions incorporate relevant notes content
+7. Notes persist when saving study
+
+### Provider/Model Selection
+1. Settings modal shows provider dropdown
+2. Model dropdown updates per provider
+3. Selected model persists after reload
+4. Generation uses selected model
+
+### Responsive Design
+1. Desktop: Side-by-side split view
+2. Tablet: Narrower panels
+3. Mobile: Stacked layout (passage first)
+
+## Files Reference
+
+### Phase 1 (Foundation)
+- `frontend/src/types/index.ts` - Provider/model types
+- `frontend/src/hooks/useApiKeys.ts` - Enhanced with model selection
+- `frontend/src/api/unifiedAIService.ts` - Unified AI service
+- `main.py` - Provider/model parameters
+- `services/llm_router.py` - Provider routing
+
+### Phase 2 (New Flow)
+- `frontend/src/pages/LandingPage.tsx` - Landing page
+- `frontend/src/components/wizard/CreateStudyWizard.tsx` - Creation wizard
+- `frontend/src/App.tsx` - Updated routing
+
+### Phase 3 (Editor)
+- `frontend/src/components/editor/WorkspaceEditor.tsx` - Split view
+- `frontend/src/components/editor/PassagePanel.tsx` - Passage display
+- `frontend/src/components/editor/StudyContentPanel.tsx` - Study editor with notes
+- `frontend/src/components/editor/MagicDraftButton.tsx` - AI draft button
+- `frontend/src/components/ui/FloatingToolbar.tsx` - Dual-mode toolbar
+- `frontend/src/api/enhanceClient.ts` - AI enhancement functions including notes validation
+
+### Key AI Functions (`enhanceClient.ts`)
+- `validateUserNotes(notes, passageText, sectionHeading)` - Validates notes relevance (returns score 0-100)
+- `draftObservationQuestions(text, heading, count, userNotes?)` - Generates observation questions (optionally guided by notes)
+- `draftInterpretationQuestions(text, heading, count, userNotes?)` - Generates interpretation questions (optionally guided by notes)
+- `rephraseText(text, context?)` - Rephrases selected text
+- `shortenText(text, context?)` - Shortens selected text
+- `explainPassage(text, context)` - Explains selected Bible text
+- `findCrossReferences(text, reference)` - Finds related passages
+
+### EditableStudyFlowSection (Updated)
 ```typescript
-// Question types include "feeling" for personal reflection
-type EditableQuestionType = 'observation' | 'interpretation' | 'feeling' | 'application';
-
-interface EditableQuestion {
-  id: string;
-  type: EditableQuestionType;
-  question: string;
-  answer?: string;  // Optional for application/feeling
-}
-
-interface EditableCrossReference {
-  id: string;
-  reference: string;
-  note: string;
-}
-
 interface EditableStudyFlowSection {
   id: string;
   passage_section: string;
   section_heading: string;
-  questions: EditableQuestion[];  // All questions for this section
+  questions: EditableQuestion[];
   connection?: string;
-}
-
-interface EditableStudyFull {
-  id: string;
-  purpose: string;
-  context: string;
-  key_themes: string[];
-  study_flow: EditableStudyFlowSection[];
-  summary: string;
-  application_questions: EditableQuestion[];
-  cross_references: EditableCrossReference[];
-  prayer_prompt: string;
-  lastModified?: Date;
-  isEdited?: boolean;
-  isSaved?: boolean;  // Whether saved to history
+  userNotes?: string;  // Free-write notes for personal study/outline
 }
 ```
-
-**useEditableStudy Hook** - Full CRUD operations:
-```typescript
-// Field updaters
-updatePurpose, updateContext, updateSummary, updatePrayerPrompt
-
-// Theme management
-addTheme, updateTheme, removeTheme
-
-// Question management (within study flow sections)
-addQuestion, updateQuestion, removeQuestion, reorderQuestions
-
-// Application questions
-addApplicationQuestion, updateApplicationQuestion, removeApplicationQuestion
-
-// Cross references
-addCrossReference, updateCrossReference, removeCrossReference
-
-// Section management
-updateSectionHeading, updateSectionConnection, updateSectionPassage
-addSection(passageSection, heading)  // Add new study flow section
-removeSection(sectionId)             // Remove section (min 1 required)
-
-// Actions
-saveToHistory()   // Save to history (legacy)
-markAsSaved()     // Mark study as saved (for savedStudies flow)
-discardChanges()  // Reset to original
-setBlankStudy()   // Set a blank study template
-```
-
-**useSavedStudies Hook** - CRUD for saved studies:
-```typescript
-// Queries
-useSavedStudies()    // List all saved studies
-useSavedStudy(id)    // Get single saved study
-
-// Mutations
-useSaveStudy()       // Save study to savedStudies table
-useDeleteSavedStudy() // Delete a saved study
-useClearSavedStudies() // Clear all saved studies
-useExportSavedStudies() // Export as JSON
-useImportSavedStudies() // Import from JSON
-```
-
-### Import/Export Formats
-
-**History Export** (HistoryPage)
-```json
-{
-  "exportedAt": "2026-01-16T...",
-  "version": "2.0",
-  "history": [...],    // ReadingHistoryItem[]
-  "passages": [...],   // CachedPassage[]
-  "studies": [...]     // CachedStudy[]
-}
-```
-
-**Saved Studies Export** (SavedPage) - v2.0
-```json
-{
-  "exportedAt": "2026-01-17T...",
-  "version": "2.0",
-  "savedStudies": [
-    {
-      "id": "uuid",
-      "reference": "John 1:1-18",
-      "passageText": "In the beginning...",
-      "study": {
-        "id": "study-uuid",
-        "purpose": "",           // All keys present even if empty
-        "context": "",
-        "key_themes": [],
-        "study_flow": [],
-        "summary": "",
-        "application_questions": [],
-        "cross_references": [],
-        "prayer_prompt": "",
-        "lastModified": null,
-        "isEdited": false,
-        "isSaved": true
-      },
-      "provider": "manual",
-      "savedAt": "2026-01-17T..."
-    }
-  ]
-}
-```
-
-**Import Validation Rules**:
-- All required keys must be present (id, reference, passageText, study, savedAt)
-- No foreign/unexpected keys allowed (rejected by strict validation)
-- Per-study validation: valid studies import, invalid ones skip with error messages
-- Backward compatible: v1.0 files are normalized before import
-
-## Key Design Decisions
-
-1. **Client-side persistence**: All data stored in IndexedDB via Dexie - fully offline-capable
-2. **Multi-provider LLM**: Automatic fallback Groq → OpenRouter → Gemini → Claude
-3. **3-column drag-drop layout**: Scripture | Flow | Guide, user can reorder and persist
-4. **Full editable study content**:
-   - Add/edit/remove questions (Observation/Interpretation/Feeling/Application)
-   - Drag-drop reorder questions within sections
-   - Edit all fields (Purpose, Context, Themes, Summary, Cross-References, Prayer)
-   - Add/remove study flow sections with passage references
-   - Required field validation (Purpose, Context cannot be empty)
-5. **Saved vs History separation**:
-   - "Save Study" saves to Saved Studies (full content, for later editing)
-   - History tracks generation metadata only (lightweight)
-   - Saved studies have their own page (/saved) with JSON import/export
-6. **Manual save flow**: Studies NOT auto-saved - explicit Save button required
-7. **Unsaved changes protection**: Browser warning on navigation, Ctrl+S shortcut
-8. **JSON import/export**: Strict Zod validation, per-study validation (valid imports, invalid skips), append mode
-9. **Doctrinal guardrails**: Reformed theology embedded in prompt (Trinity, TULIP, etc.)
-10. **Flow-based generation**: Users can define section purposes for custom question generation
-11. **Fun generate button**: Animated gradient button with sparkles icon
-12. **Hybrid client/server generation**: When user provides API keys, generates studies client-side; falls back to backend otherwise
-13. **Client-side AI enhance**: Individual questions can be enhanced using OpenRouter directly from browser
-14. **AI FloatingToolbar**: Select text in editable fields to rephrase/shorten via AI
-15. **Save bar at bottom**: Save controls positioned after content for better UX
-16. **Provider badge below columns**: Shows at column bottom for alignment
-
-## Client-Side Architecture
-
-**API Key Settings** (`ApiKeySettings.tsx`, `useApiKeys.ts`)
-- Users can configure their own API keys in browser settings (gear icon in header)
-- **Disclaimer at top**: Explains why to configure keys (personal rate limits vs shared server key)
-- Keys stored in IndexedDB `userPreferences` table - never sent to backend
-- **Modal uses `createPortal`**: Renders to document.body for proper z-index stacking, avoiding issues with parent stacking contexts
-- Modal properly positioned with scroll and margin to prevent edge touching
-- Required keys for client-side generation:
-  - ESV API key (for passage text)
-  - OpenRouter API key (for LLM calls - CORS-enabled, free tier available)
-- Optional backend proxy keys: Groq, Gemini, Anthropic
-
-**Client-Side Generation** (`llmClient.ts`, `useStudyGeneration.ts`)
-- When both ESV and OpenRouter keys are configured:
-  - Fetches passage directly from ESV API
-  - Generates study via OpenRouter API (direct CORS call)
-  - No backend required - works completely offline with API keys
-- Falls back to backend when keys not configured
-- Provider badge shows "openrouter (client)" for client-side generation
-
-**AI Enhancement** (`enhanceClient.ts`, `EditableQuestionCard.tsx`, `FloatingToolbar.tsx`)
-- Hover over any question to reveal sparkles button
-- Sends question + passage context to OpenRouter for enhancement
-- Updates question and answer in place
-- Only available when OpenRouter API key is configured
-- **FloatingToolbar**: Select text (10+ chars) in editable fields to access:
-  - Rephrase: Rewrite for clarity and engagement
-  - Shorten: Condense while preserving meaning
-  - Available in Purpose, Context, Summary, Prayer Prompt fields
-
-**Word Export** (`wordExport.ts`)
-- Client-side Word document generation using `docx` library
-- Formats study with sections: Purpose, Context, Themes, Study Sections, Summary, Application, Cross-References, Prayer
-- Downloads .docx file directly to user's computer
-
-**Blank Study** (`blankStudy.ts`)
-- "New Blank Study" button creates empty study template
-- Modal shows ESV API key status:
-  - Green: User has ESV API key configured (fetches via client-side)
-  - Blue: No key configured, will fetch via server's ESV API
-- **Passage text always fetched**: Either via user's ESV API key (client-side) or via backend `/api/passage` endpoint (server-side fallback)
-- User fills in reference, then manually adds all content
-- Useful for creating studies without AI assistance
-
-## Testing Checklist
-
-1. **Study generation**:
-   - Verse range works: "John 1:1-18"
-   - Cross-chapter range works: "John 1:1-2:10"
-   - Purpose statement has action verb
-   - Doctrinal content aligns with Reformed theology
-
-2. **PassageSelector**:
-   - Book search: Type "Jo" → shows John, Joshua, Job, Jonah, Joel, Jude
-   - Keyboard navigation: Arrow keys to navigate, Enter to select
-   - Book groups: Old Testament and New Testament sections
-   - Cross-chapter selection: Select John 1:1 as start, Chapter 2 Verse 10 as end
-   - Reference displays as "John 1:1-2:10"
-   - End chapter dropdown only shows chapters >= start chapter
-   - End verse dropdown shows verses >= start verse (when same chapter)
-   - Passage preview loads after ~500ms debounce
-   - Preview shows verse count badge
-   - Preview is collapsible
-
-3. **3-Column Layout**:
-   - Drag columns to reorder
-   - Refresh page - order persists
-   - Mobile: stacks vertically
-
-4. **Editable Content**:
-   - Click any field to edit (Purpose, Context, questions, etc.)
-   - Add questions via type selector (O/I/F/A)
-   - Remove questions via trash icon
-   - Drag questions to reorder within section
-   - Add/edit/remove themes and cross-references
-   - Escape cancels edit, changes debounced (500ms)
-   - Purpose and Context show validation error if empty
-
-5. **Manual Save Flow**:
-   - Save bar at bottom (after columns)
-   - Save bar shows "Unsaved changes" (amber)
-   - Save bar shows validation errors (red)
-   - Discard button resets to original
-   - Save Study button saves to Saved Studies (not History)
-   - Ctrl+S keyboard shortcut works
-   - Browser warns before leaving with unsaved changes
-
-6. **Saved Studies Page** (/saved):
-   - Navigate via "Saved" link in header
-   - Shows list of saved studies with reference, provider, date
-   - "View" button loads study into HomePage
-   - "Delete" button removes study with confirmation
-   - Export downloads JSON with savedStudies array
-   - Import appends studies from JSON file
-   - Clear All removes all with confirmation
-
-7. **History Viewing**:
-   - Click "View" on history item
-   - Study loads correctly with all sections
-   - Provider badge shows below columns
-   - Console shows `[Dev] Loading study from history`
-
-8. **Import/Export**:
-   - History export creates valid JSON
-   - Saved studies export creates valid JSON (v2.0 with all keys present)
-   - Export blank/incomplete study → verify all keys present (even if empty)
-   - Import validates each study individually (per-study validation)
-   - Import with mix of valid/invalid → valid ones import, invalid skip
-   - Import shows "X imported, Y skipped" with detailed error list
-   - Foreign keys in JSON → study rejected with clear error
-   - Import appends (doesn't replace)
-   - Duplicate IDs → skipped (not imported again)
-
-9. **UI**:
-   - Generate button has gradient animation
-   - Discernment disclaimer visible
-   - Back button styled properly
-   - History items have hover state
-   - Card headers have proper padding (px-6 pt-6)
-   - Provider badge at bottom of columns (aligned right)
-
-10. **API Key Settings**:
-   - Click gear icon in header → modal opens (via createPortal to document.body)
-   - Modal appears above all content (proper z-index stacking)
-   - Disclaimer visible at top ("Why Configure API Keys?")
-   - Enter ESV API key and OpenRouter API key
-   - Modal scrollable and doesn't touch screen edges
-   - Click Save → keys persist
-   - Refresh page → keys still there
-   - Provider preference dropdown works
-
-11. **Client-Side Generation** (requires API keys):
-   - Configure ESV + OpenRouter keys
-   - Stop backend server
-   - Generate study → works with client-side calls
-   - Provider badge shows "openrouter (client)"
-   - Network tab shows calls to api.esv.org and openrouter.ai
-
-12. **AI Enhance** (requires OpenRouter key):
-   - Hover over question card → sparkles button appears
-   - Click sparkles → loading spinner
-   - Question/answer updated with improved content
-   - Console shows `[Dev] Question enhanced successfully`
-
-13. **AI FloatingToolbar** (requires OpenRouter key):
-   - Edit a text field (Purpose, Context, Summary, or Prayer)
-   - Select at least 10 characters of text
-   - Floating toolbar appears with Rephrase/Shorten buttons
-   - Click Rephrase → loading spinner → text replaced
-   - Click Shorten → loading spinner → text condensed
-   - Click X or click elsewhere to dismiss toolbar
-
-14. **New Blank Study**:
-   - Click "New Blank Study" button
-   - Shows ESV API key status (green if configured, blue if using server)
-   - Enter passage reference → Create Study
-   - Passage text ALWAYS fetched (via user's key or server fallback)
-   - Empty study form appears with passage text populated
-   - Fill in Purpose and Context (required)
-   - Add questions and content manually
-   - Add/remove study flow sections
-   - Save to Saved Studies
-
-15. **Section Management**:
-   - Expand a study flow section
-   - Edit passage reference and section heading
-   - Click "Add Section" → enter passage and heading → section added
-   - Click trash icon on section → confirmation → section removed
-   - Cannot remove last section (minimum 1 required)
-
-16. **Word Export**:
-   - Generate or load a study
-   - Click "Export to Word" button in save bar
-   - .docx file downloads
-   - Open in Word → formatting correct
-
-## Prompt Engineering
-
-**services/prompts/study_prompt.py** contains:
-- `STUDY_PROMPT` - Unified prompt with doctrinal guardrails and optional flow context
-- `format_study_prompt(reference, passage_text, flow_context?)` - Single formatter function
-- `format_study_prompt_with_flow()` - Alias for backward compatibility
-
-Doctrinal guidelines enforce:
-- Scripture interprets Scripture
-- Focus on concrete text, not speculation
-- Note debates on non-essentials
-- Never contradict Reformed doctrines

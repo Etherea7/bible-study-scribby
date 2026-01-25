@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from './components/layout/Header';
-import { HomePage, HistoryPage, SavedPage } from './pages';
+import { LandingPage, HomePage, HistoryPage, SavedPage } from './pages';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,7 +20,8 @@ function App() {
           <Header />
           <main>
             <Routes>
-              <Route path="/" element={<HomePage />} />
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/editor" element={<HomePage />} />
               <Route path="/history" element={<HistoryPage />} />
               <Route path="/saved" element={<SavedPage />} />
             </Routes>

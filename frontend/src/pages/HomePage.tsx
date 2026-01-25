@@ -1,26 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { BookOpen, Sparkles, Info, Save, AlertCircle, RotateCcw, PenLine, X, FileDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  horizontalListSortingStrategy,
-} from '@dnd-kit/sortable';
 import { PassageSelector } from '../components/forms/PassageSelector';
-import { PassageDisplay } from '../components/study/PassageDisplay';
-import { StudyFlowEditor } from '../components/study/StudyFlowEditor';
-import { EditableStudyGuide } from '../components/study/EditableStudyGuide';
-import { DraggableColumn } from '../components/layout/DraggableColumn';
+import { WorkspaceEditor } from '../components/editor';
 import { LoadingOverlay } from '../components/ui/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { useStudyGeneration } from '../hooks/useStudyGeneration';
@@ -28,22 +11,17 @@ import { useEditableStudy } from '../hooks/useEditableStudy';
 import { useBeforeUnload } from '../hooks/useBeforeUnload';
 import { useSaveStudy } from '../hooks/useSavedStudies';
 import { useApiKeys } from '../hooks/useApiKeys';
-import { getColumnOrder, setColumnOrder, getCachedStudy, getCachedPassage, getSavedStudy } from '../db';
+import { getCachedStudy, getCachedPassage, getSavedStudy } from '../db';
 import { createBlankStudy } from '../utils/blankStudy';
 import { exportStudyToWord } from '../utils/wordExport';
+import { formatReference } from '../utils/formatReference';
 import { fetchPassage } from '../api/llmClient';
 import { fetchPassageFromServer } from '../api/studyApi';
-import type { Study, ColumnId, StudyFlowContext } from '../types';
-
-// Column labels for display
-const COLUMN_LABELS: Record<ColumnId, string> = {
-  scripture: 'Scripture',
-  flow: 'Study Flow',
-  guide: 'Study Guide',
-};
+import type { Study } from '../types';
 
 export function HomePage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
 
   const [currentStudy, setCurrentStudy] = useState<{
     reference: string;
@@ -52,21 +30,17 @@ export function HomePage() {
     provider: string;
   } | null>(null);
 
-  // Column order state (persisted to Dexie)
-  const [columnOrder, setColumnOrderState] = useState<ColumnId[]>([
-    'scripture',
-    'flow',
-    'guide',
-  ]);
-
-  // Flow context for AI generation (future use)
-  const [flowContext, setFlowContext] = useState<StudyFlowContext | undefined>();
-
   // Blank study modal state
   const [showBlankStudyModal, setShowBlankStudyModal] = useState(false);
-  const [blankStudyReference, setBlankStudyReference] = useState('');
   const [blankStudyLoading, setBlankStudyLoading] = useState(false);
   const [blankStudyError, setBlankStudyError] = useState<string | null>(null);
+  const [blankStudyPassage, setBlankStudyPassage] = useState<{
+    book: string;
+    startChapter: number;
+    startVerse: number;
+    endChapter: number;
+    endVerse: number;
+  } | null>(null);
 
   const generateMutation = useStudyGeneration();
   const saveStudyMutation = useSaveStudy();
@@ -96,20 +70,26 @@ export function HomePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [editableStudy.isDirty, editableStudy.study, currentStudy]);
 
-  // Configure drag sensors
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8, // Require 8px movement before drag starts
-      },
-    }),
-    useSensor(KeyboardSensor)
-  );
-
-  // Load saved column order on mount
+  // Load study from location state (when coming from wizard)
   useEffect(() => {
-    getColumnOrder().then(setColumnOrderState);
-  }, []);
+    if (location.state && typeof location.state === 'object') {
+      const state = location.state as any;
+      if (state.reference && state.passageText && state.study) {
+        console.log(`[Dev] Loading study from wizard: ${state.reference} (provider: ${state.provider})`);
+        setCurrentStudy({
+          reference: state.reference,
+          passage_text: state.passageText,
+          study: state.study,
+          provider: state.provider || 'unknown',
+        });
+        // Initialize editable study
+        editableStudy.setBlankStudy(state.study);
+
+        // Clear location state to prevent re-triggering on re-render
+        window.history.replaceState({}, document.title);
+      }
+    }
+  }, [location.state]);
 
   // Load study from URL parameter (when coming from history or saved page)
   useEffect(() => {
@@ -160,22 +140,6 @@ export function HomePage() {
     }
   }, [searchParams, setSearchParams]);
 
-  // Handle drag end - reorder columns
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setColumnOrderState((prev) => {
-        const oldIndex = prev.indexOf(active.id as ColumnId);
-        const newIndex = prev.indexOf(over.id as ColumnId);
-        const newOrder = arrayMove(prev, oldIndex, newIndex);
-        // Persist to Dexie
-        setColumnOrder(newOrder);
-        return newOrder;
-      });
-    }
-  }, []);
-
   const handleGenerateStudy = async (
     book: string,
     startChapter: number,
@@ -198,16 +162,6 @@ export function HomePage() {
       study: result.study,
       provider: result.provider,
     });
-
-    // Initialize flow context from generated study
-    if (result.study.study_flow) {
-      setFlowContext({
-        sectionPurposes: result.study.study_flow.map((item) => ({
-          passageSection: item.passage_section,
-          purpose: `Study ${item.section_heading}`,
-        })),
-      });
-    }
   };
 
   const handleSave = async () => {
@@ -239,9 +193,10 @@ export function HomePage() {
   };
 
   const handleCreateBlankStudy = async () => {
-    if (!blankStudyReference.trim()) return;
+    if (!blankStudyPassage) return;
 
-    const reference = blankStudyReference.trim();
+    const { book, startChapter, startVerse, endChapter, endVerse } = blankStudyPassage;
+    const reference = formatReference(book, startChapter, startVerse, endChapter, endVerse);
     console.log(`[Dev] Creating blank study for: ${reference}`);
 
     setBlankStudyLoading(true);
@@ -292,7 +247,7 @@ export function HomePage() {
     // Reset modal state
     setBlankStudyLoading(false);
     setShowBlankStudyModal(false);
-    setBlankStudyReference('');
+    setBlankStudyPassage(null);
   };
 
   const handleExportToWord = async () => {
@@ -307,66 +262,6 @@ export function HomePage() {
       );
     } catch (error) {
       console.error('Failed to export to Word:', error);
-    }
-  };
-
-  // Render a column by its ID
-  const renderColumn = (columnId: ColumnId) => {
-    if (!currentStudy) return null;
-
-    switch (columnId) {
-      case 'scripture':
-        return (
-          <PassageDisplay
-            reference={currentStudy.reference}
-            text={currentStudy.passage_text}
-          />
-        );
-      case 'flow':
-        return (
-          <StudyFlowEditor
-            studyFlow={editableStudy.study?.study_flow || currentStudy.study.study_flow}
-            flowContext={flowContext}
-            onFlowContextChange={setFlowContext}
-            editable={true}
-            keyThemes={editableStudy.study?.key_themes}
-            summary={editableStudy.study?.summary}
-            crossReferences={editableStudy.study?.cross_references}
-            passageContext={currentStudy.passage_text}
-            onUpdateSummary={editableStudy.updateSummary}
-            onAddTheme={editableStudy.addTheme}
-            onUpdateTheme={editableStudy.updateTheme}
-            onRemoveTheme={editableStudy.removeTheme}
-            onAddCrossReference={editableStudy.addCrossReference}
-            onUpdateCrossReference={editableStudy.updateCrossReference}
-            onRemoveCrossReference={editableStudy.removeCrossReference}
-          />
-        );
-      case 'guide':
-        return editableStudy.study ? (
-          <EditableStudyGuide
-            study={editableStudy.study}
-            passageContext={currentStudy.passage_text}
-            validationErrors={editableStudy.validationErrors}
-            onUpdatePurpose={editableStudy.updatePurpose}
-            onUpdateContext={editableStudy.updateContext}
-            onUpdatePrayerPrompt={editableStudy.updatePrayerPrompt}
-            onAddQuestion={editableStudy.addQuestion}
-            onUpdateQuestion={editableStudy.updateQuestion}
-            onRemoveQuestion={editableStudy.removeQuestion}
-            onReorderQuestions={editableStudy.reorderQuestions}
-            onAddApplicationQuestion={editableStudy.addApplicationQuestion}
-            onUpdateApplicationQuestion={editableStudy.updateApplicationQuestion}
-            onRemoveApplicationQuestion={editableStudy.removeApplicationQuestion}
-            onUpdateSectionHeading={editableStudy.updateSectionHeading}
-            onUpdateSectionConnection={editableStudy.updateSectionConnection}
-            onAddSection={editableStudy.addSection}
-            onRemoveSection={editableStudy.removeSection}
-            onUpdateSectionPassage={editableStudy.updateSectionPassage}
-          />
-        ) : null;
-      default:
-        return null;
     }
   };
 
@@ -452,28 +347,17 @@ export function HomePage() {
                   Create a blank study template to fill in manually without AI generation.
                 </p>
                 <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                      Passage Reference
-                    </label>
-                    <input
-                      type="text"
-                      value={blankStudyReference}
-                      onChange={(e) => {
-                        setBlankStudyReference(e.target.value);
-                        setBlankStudyError(null);
-                      }}
-                      placeholder="e.g., Romans 8:1-4"
-                      disabled={blankStudyLoading}
-                      className="w-full px-3 py-2 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50 disabled:opacity-50"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && blankStudyReference.trim() && !blankStudyLoading) {
-                          handleCreateBlankStudy();
-                        }
-                      }}
-                      autoFocus
-                    />
-                  </div>
+                  {/* Passage Selector */}
+                  <PassageSelector
+                    onSubmit={() => {}}
+                    onChange={(book, startChapter, startVerse, endChapter, endVerse) => {
+                      setBlankStudyPassage({ book, startChapter, startVerse, endChapter, endVerse });
+                      setBlankStudyError(null);
+                    }}
+                    loading={false}
+                    hidePreview={true}
+                    hideSubmitButton={true}
+                  />
 
                   {/* ESV API key status */}
                   <div className={`text-xs px-3 py-2 rounded-lg ${apiKeys.esvApiKey
@@ -497,6 +381,7 @@ export function HomePage() {
                       onClick={() => {
                         setShowBlankStudyModal(false);
                         setBlankStudyError(null);
+                        setBlankStudyPassage(null);
                       }}
                       disabled={blankStudyLoading}
                       className="px-4 py-2 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors disabled:opacity-50"
@@ -505,7 +390,7 @@ export function HomePage() {
                     </button>
                     <button
                       onClick={handleCreateBlankStudy}
-                      disabled={!blankStudyReference.trim() || blankStudyLoading}
+                      disabled={!blankStudyPassage || blankStudyLoading}
                       className="px-4 py-2 text-sm font-medium text-white bg-[var(--color-accent)] hover:bg-[var(--color-accent-dark)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
                       {blankStudyLoading ? 'Fetching passage...' : 'Create Study'}
@@ -529,37 +414,43 @@ export function HomePage() {
           </Card>
         )}
 
-        {/* Study Display - 3 Column Drag-Drop Layout */}
-        {currentStudy && (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            {/* <div className="mb-4 text-sm text-[var(--text-muted)] flex items-center gap-2">
-              <span>Drag columns to reorder</span>
-              <span className="text-xs">
-                ({columnOrder.map((id) => COLUMN_LABELS[id]).join(' | ')})
-              </span>
-            </div> */}
-            <SortableContext
-              items={columnOrder}
-              strategy={horizontalListSortingStrategy}
-            >
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {columnOrder.map((columnId) => (
-                  <DraggableColumn key={columnId} id={columnId}>
-                    {renderColumn(columnId)}
-                  </DraggableColumn>
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+        {/* Workspace Editor - Split View Layout */}
+        {currentStudy && editableStudy.study && (
+          <WorkspaceEditor
+            reference={currentStudy.reference}
+            passageText={currentStudy.passage_text}
+            editableStudy={editableStudy.study}
+            validationErrors={editableStudy.validationErrors}
+            passageContext={currentStudy.passage_text}
+            onUpdatePurpose={editableStudy.updatePurpose}
+            onUpdateContext={editableStudy.updateContext}
+            onUpdateSummary={editableStudy.updateSummary}
+            onUpdatePrayerPrompt={editableStudy.updatePrayerPrompt}
+            onAddTheme={editableStudy.addTheme}
+            onUpdateTheme={editableStudy.updateTheme}
+            onRemoveTheme={editableStudy.removeTheme}
+            onAddQuestion={editableStudy.addQuestion}
+            onUpdateQuestion={editableStudy.updateQuestion}
+            onRemoveQuestion={editableStudy.removeQuestion}
+            onReorderQuestions={editableStudy.reorderQuestions}
+            onAddApplicationQuestion={editableStudy.addApplicationQuestion}
+            onUpdateApplicationQuestion={editableStudy.updateApplicationQuestion}
+            onRemoveApplicationQuestion={editableStudy.removeApplicationQuestion}
+            onAddCrossReference={editableStudy.addCrossReference}
+            onUpdateCrossReference={editableStudy.updateCrossReference}
+            onRemoveCrossReference={editableStudy.removeCrossReference}
+            onUpdateSectionHeading={editableStudy.updateSectionHeading}
+            onUpdateSectionConnection={editableStudy.updateSectionConnection}
+            onUpdateSectionPassage={editableStudy.updateSectionPassage}
+            onAddSection={editableStudy.addSection}
+            onRemoveSection={editableStudy.removeSection}
+            onUpdateStudyNotes={editableStudy.updateStudyNotes}
+          />
         )}
 
-        {/* Provider Badge - Below columns */}
+        {/* Provider Badge - Below workspace */}
         {currentStudy?.provider && (
-          <div className="flex justify-end mt-4 mb-2">
+          <div className="flex justify-end mt-6 mb-2">
             <span className="text-[var(--text-muted)] flex items-center gap-1.5 text-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
               Generated by {currentStudy.provider}

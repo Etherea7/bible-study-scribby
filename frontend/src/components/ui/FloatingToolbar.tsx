@@ -3,18 +3,23 @@
  *
  * Appears when text is selected in editable fields.
  * Provides quick actions to rephrase or shorten selected text using AI.
+ * In passage mode, provides Explain and Find Cross-Reference actions.
  */
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw, Minimize2, Loader2, X } from 'lucide-react';
+import { RefreshCw, Minimize2, Loader2, X, HelpCircle, Link2 } from 'lucide-react';
 import { rephraseText, shortenText } from '../../api/enhanceClient';
+import { floatingToolbar, fadeInDown, buttonTap } from '../../utils/animations';
 
 interface FloatingToolbarProps {
   selectedText: string;
   position: { x: number; y: number };
   context?: string;
-  onReplace: (newText: string) => void;
+  mode?: 'edit' | 'passage'; // 'edit' for editable fields, 'passage' for Bible text
+  onReplace?: (newText: string) => void; // Optional for passage mode
+  onExplain?: () => void; // Passage mode only
+  onFindCrossReference?: () => void; // Passage mode only
   onClose: () => void;
 }
 
@@ -22,14 +27,19 @@ export function FloatingToolbar({
   selectedText,
   position,
   context,
+  mode = 'edit',
   onReplace,
+  onExplain,
+  onFindCrossReference,
   onClose,
 }: FloatingToolbarProps) {
   const [isLoading, setIsLoading] = useState<'rephrase' | 'shorten' | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const isPassageMode = mode === 'passage';
+
   const handleRephrase = async () => {
-    if (isLoading || !selectedText.trim()) return;
+    if (isLoading || !selectedText.trim() || !onReplace) return;
 
     setIsLoading('rephrase');
     setError(null);
@@ -48,7 +58,7 @@ export function FloatingToolbar({
   };
 
   const handleShorten = async () => {
-    if (isLoading || !selectedText.trim()) return;
+    if (isLoading || !selectedText.trim() || !onReplace) return;
 
     setIsLoading('shorten');
     setError(null);
@@ -66,68 +76,124 @@ export function FloatingToolbar({
     }
   };
 
+  const handleExplain = () => {
+    if (onExplain) {
+      onExplain();
+    }
+  };
+
+  const handleFindCrossReference = () => {
+    if (onFindCrossReference) {
+      onFindCrossReference();
+    }
+  };
+
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, y: 5, scale: 0.95 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: 5, scale: 0.95 }}
-        transition={{ duration: 0.15 }}
-        className="fixed z-[100] flex flex-col items-center"
+        variants={floatingToolbar}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        className="fixed z-[100] flex flex-col items-center will-animate"
         style={{
           left: Math.max(10, Math.min(position.x, window.innerWidth - 180)),
           top: Math.max(10, position.y),
         }}
       >
         {/* Main toolbar */}
-        <div className="flex items-center gap-1 px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-lg shadow-lg">
-          <button
-            onClick={handleRephrase}
-            disabled={!!isLoading}
-            className="
-              flex items-center gap-1.5 px-2.5 py-1.5
-              text-xs font-medium
-              text-[var(--text-secondary)]
-              hover:text-[var(--text-primary)]
-              hover:bg-[var(--bg-surface)]
-              rounded-md
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-colors
-            "
-            title="Rephrase selected text with AI"
-          >
-            {isLoading === 'rephrase' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
-            )}
-            Rephrase
-          </button>
+        <div className="flex items-center gap-1 px-2 py-1.5 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-lg shadow-lg backdrop-blur-sm">
+          {isPassageMode ? (
+            <>
+              {/* Passage mode: Explain and Cross-Reference */}
+              <button
+                onClick={handleExplain}
+                className="
+                  flex items-center gap-1.5 px-2.5 py-1.5
+                  text-xs font-medium
+                  text-[var(--text-secondary)]
+                  hover:text-[var(--text-primary)]
+                  hover:bg-[var(--bg-surface)]
+                  rounded-md
+                  transition-colors
+                "
+                title="Get AI explanation of selected text"
+              >
+                <HelpCircle className="h-3.5 w-3.5" />
+                Explain
+              </button>
 
-          <div className="w-px h-4 bg-[var(--border-color)]" />
+              <div className="w-px h-4 bg-[var(--border-color)]" />
 
-          <button
-            onClick={handleShorten}
-            disabled={!!isLoading}
-            className="
-              flex items-center gap-1.5 px-2.5 py-1.5
-              text-xs font-medium
-              text-[var(--text-secondary)]
-              hover:text-[var(--text-primary)]
-              hover:bg-[var(--bg-surface)]
-              rounded-md
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-colors
-            "
-            title="Shorten selected text with AI"
-          >
-            {isLoading === 'shorten' ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Minimize2 className="h-3.5 w-3.5" />
-            )}
-            Shorten
-          </button>
+              <button
+                onClick={handleFindCrossReference}
+                className="
+                  flex items-center gap-1.5 px-2.5 py-1.5
+                  text-xs font-medium
+                  text-[var(--text-secondary)]
+                  hover:text-[var(--text-primary)]
+                  hover:bg-[var(--bg-surface)]
+                  rounded-md
+                  transition-colors
+                "
+                title="Find related passages"
+              >
+                <Link2 className="h-3.5 w-3.5" />
+                Cross-Ref
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Edit mode: Rephrase and Shorten */}
+              <button
+                onClick={handleRephrase}
+                disabled={!!isLoading}
+                className="
+                  flex items-center gap-1.5 px-2.5 py-1.5
+                  text-xs font-medium
+                  text-[var(--text-secondary)]
+                  hover:text-[var(--text-primary)]
+                  hover:bg-[var(--bg-surface)]
+                  rounded-md
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-colors
+                "
+                title="Rephrase selected text with AI"
+              >
+                {isLoading === 'rephrase' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+                Rephrase
+              </button>
+
+              <div className="w-px h-4 bg-[var(--border-color)]" />
+
+              <button
+                onClick={handleShorten}
+                disabled={!!isLoading}
+                className="
+                  flex items-center gap-1.5 px-2.5 py-1.5
+                  text-xs font-medium
+                  text-[var(--text-secondary)]
+                  hover:text-[var(--text-primary)]
+                  hover:bg-[var(--bg-surface)]
+                  rounded-md
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-colors
+                "
+                title="Shorten selected text with AI"
+              >
+                {isLoading === 'shorten' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Minimize2 className="h-3.5 w-3.5" />
+                )}
+                Shorten
+              </button>
+            </>
+          )}
 
           <div className="w-px h-4 bg-[var(--border-color)]" />
 

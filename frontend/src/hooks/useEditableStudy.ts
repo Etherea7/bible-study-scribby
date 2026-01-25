@@ -92,6 +92,7 @@ function toEditableStudy(study: Study | EditableStudyFull): EditableStudyFull {
       note: ref.note,
     })),
     prayer_prompt: rawStudy.prayer_prompt,
+    studyNotes: '',
     lastModified: new Date(),
     isEdited: false,
     isSaved: false,
@@ -137,6 +138,9 @@ interface UseEditableStudyResult {
   updateSectionPassage: (sectionId: string, passage: string) => void;
   addSection: (passageSection: string, heading: string) => void;
   removeSection: (sectionId: string) => void;
+
+  // Study-level notes
+  updateStudyNotes: (notes: string) => void;
 
   // Actions
   saveToHistory: (reference: string, passageText: string, provider: string) => Promise<void>;
@@ -206,6 +210,13 @@ export function useEditableStudy(
     setStudy((prev) => {
       if (!prev) return null;
       return { ...prev, prayer_prompt: value, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
+  const updateStudyNotes = useCallback((value: string) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      return { ...prev, studyNotes: value, isEdited: true, lastModified: new Date() };
     });
   }, []);
 
@@ -579,6 +590,7 @@ export function useEditableStudy(
     updateSectionPassage,
     addSection,
     removeSection,
+    updateStudyNotes,
     saveToHistory,
     discardChanges,
     setBlankStudy,

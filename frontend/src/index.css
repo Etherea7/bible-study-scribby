@@ -104,6 +104,20 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1;
+  font-kerning: normal;
+}
+
+/* Prevent layout shift on font load */
+@font-face {
+  font-family: 'Inter';
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-display: swap;
 }
 
 /* Passage text styling - scholarly serif */
@@ -420,13 +434,203 @@ body {
   }
 }
 
-/* Performance optimizations for animations */
-.pointer-events-auto {
+/* ============================================================================
+   PERFORMANCE OPTIMIZATIONS
+   ============================================================================ */
+
+/* GPU acceleration for animated elements */
+.will-animate {
   will-change: transform, opacity;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Remove will-change after animation completes (add via JS) */
+.will-animate-off {
+  will-change: auto;
 }
 
 /* Smooth scrolling for modal content */
 .overflow-y-auto {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+}
+
+/* Prevent layout shift during animations */
+.contain-layout {
+  contain: layout style paint;
+}
+
+/* Focus visible styles for accessibility */
+:focus-visible {
+  outline: 2px solid var(--color-observation);
+  outline-offset: 2px;
+}
+
+/* Remove default focus styles */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ============================================================================
+   HOVER & INTERACTION STATES
+   ============================================================================ */
+
+/* Smooth hover transitions */
+.hover-lift {
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+/* Press effect for interactive elements */
+.press-effect {
+  transition: transform 0.1s ease-out;
+}
+
+.press-effect:active {
+  transform: scale(0.98);
+}
+
+/* ============================================================================
+   SKELETON LOADING STATES
+   ============================================================================ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-surface) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+.skeleton-text {
+  height: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-title {
+  height: 1.5rem;
+  margin-bottom: 0.75rem;
+  width: 60%;
+}
+
+/* ============================================================================
+   RESPONSIVE UTILITIES
+   ============================================================================ */
+
+/* Touch-friendly tap targets (minimum 44x44px) */
+.tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Responsive text sizing */
+@media (max-width: 640px) {
+  .text-responsive {
+    font-size: 0.9rem;
+  }
+}
+
+/* ============================================================================
+   SCROLLBAR ENHANCEMENTS
+   ============================================================================ */
+
+/* Custom scrollbar styling with smooth fade */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================================================
+   REDUCED MOTION SUPPORT
+   ============================================================================ */
+
+/* Respect user's motion preferences for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .will-animate {
+    will-change: auto;
+    transform: none;
+    backface-visibility: visible;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ============================================================================
+   SAFE AREA SUPPORT (for notched devices)
+   ============================================================================ */
+
+@supports (padding: env(safe-area-inset-bottom)) {
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* ============================================================================
+   PRINT STYLES
+   ============================================================================ */
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .card-premium {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+
+  .passage-text {
+    font-size: 12pt;
+    line-height: 1.6;
+  }
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, memo, useCallback } from 'react';
 import { Search, ChevronDown, Book } from 'lucide-react';
 import { BIBLE_BOOKS, getBooksGroupedByTestament } from '../../utils/bibleData';
 
@@ -8,7 +8,7 @@ interface BookSearchComboboxProps {
     className?: string;
 }
 
-export function BookSearchCombobox({ value, onChange, className = '' }: BookSearchComboboxProps) {
+export const BookSearchCombobox = memo(function BookSearchCombobox({ value, onChange, className = '' }: BookSearchComboboxProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [highlightedIndex, setHighlightedIndex] = useState(0);
@@ -101,11 +101,11 @@ export function BookSearchCombobox({ value, onChange, className = '' }: BookSear
         }
     };
 
-    const handleSelect = (bookName: string) => {
+    const handleSelect = useCallback((bookName: string) => {
         onChange(bookName);
         setIsOpen(false);
         setSearchQuery('');
-    };
+    }, [onChange]);
 
     const selectedBook = BIBLE_BOOKS.find((b) => b.name === value);
 
@@ -245,4 +245,4 @@ export function BookSearchCombobox({ value, onChange, className = '' }: BookSear
             )}
         </div>
     );
-}
+});

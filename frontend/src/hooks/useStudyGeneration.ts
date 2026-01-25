@@ -1,8 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { generateStudy as apiGenerateStudy } from '../api/studyApi';
-import { callOpenRouter, fetchPassage, buildReference } from '../api/llmClient';
-import { getApiKeys } from './useApiKeys';
-import { formatStudyPrompt } from '../utils/studyPrompt';
+import { UnifiedAIService } from '../api/unifiedAIService';
+import { getApiKeys, getEffectiveProviderAndModel } from './useApiKeys';
 import {
   getCachedStudy,
   getCachedPassage,
@@ -15,10 +14,12 @@ import type { GenerateStudyRequest, GenerateStudyResponse, Study } from '../type
 
 interface StudyResult extends GenerateStudyResponse {
   fromCache: boolean;
+  model?: string;
 }
 
 /**
  * Hook for generating Bible studies with caching
+ * Uses the UnifiedAIService for consistent provider/model handling
  */
 export function useStudyGeneration() {
   const queryClient = useQueryClient();
@@ -51,47 +52,56 @@ export function useStudyGeneration() {
         };
       }
 
-      // Check for user API keys for client-side generation
+      // Check for user API keys and settings
       const apiKeys = await getApiKeys();
-      const canUseClientSide = Boolean(apiKeys.esvApiKey && apiKeys.openrouterApiKey);
+      const { provider, model, apiKey } = await getEffectiveProviderAndModel();
+
+      // Check if we can do client-side generation
+      const canUseClientSide = Boolean(
+        apiKeys.esvApiKey &&
+        apiKeys.openrouterApiKey &&
+        (provider === 'openrouter' || !provider)  // Only OpenRouter supports CORS
+      );
 
       let response: GenerateStudyResponse;
 
       if (canUseClientSide) {
-        // Client-side generation using user's API keys
-        console.log('[Dev] Using client-side generation with user API keys');
+        // Client-side generation using UnifiedAIService
+        console.log(`[Dev] Using client-side generation (provider: ${provider}, model: ${model})`);
 
-        // Build reference for ESV API (supports cross-chapter)
-        const esvReference = buildReference(
-          params.book,
-          params.chapter,
-          params.start_verse,
-          endChapter,
-          params.end_verse
-        );
+        try {
+          const result = await UnifiedAIService.generateStudy(params, {
+            provider: provider || 'openrouter',
+            model: model || undefined,
+          });
 
-        // Fetch passage from ESV API
-        const passageText = await fetchPassage(esvReference, apiKeys.esvApiKey!);
-
-        // Format the prompt and call OpenRouter
-        const prompt = formatStudyPrompt(reference, passageText);
-        const studyResult = await callOpenRouter(prompt, apiKeys.openrouterApiKey!);
-
-        // callOpenRouter returns Study | string, but for study generation we always expect Study
-        if (typeof studyResult === 'string') {
-          throw new Error('Unexpected string response from LLM');
+          response = {
+            reference: result.isClientSide ? reference : reference,  // Build reference for consistency
+            passage_text: await UnifiedAIService.fetchPassage(reference),
+            study: result.study,
+            provider: result.provider,
+          };
+        } catch (error) {
+          console.error('[Dev] Client-side generation failed, falling back to server:', error);
+          // Fallback to server on client-side error
+          response = await apiGenerateStudy({
+            ...params,
+            provider: provider || undefined,
+            model: model || undefined,
+          });
         }
-
-        response = {
-          reference,
-          passage_text: passageText,
-          study: studyResult,
-          provider: 'openrouter (client)',
-        };
       } else {
-        // Fallback to backend API
-        console.log('[Dev] Fetching from backend API:', reference);
-        response = await apiGenerateStudy(params);
+        // Server-side generation
+        console.log(`[Dev] Using server-side generation (provider: ${provider}, model: ${model})`);
+
+        // Include provider and model in the server request if user has preferences
+        const requestWithSettings = {
+          ...params,
+          provider: provider || undefined,
+          model: model || undefined,
+        };
+
+        response = await apiGenerateStudy(requestWithSettings);
       }
 
       // Cache results
@@ -108,7 +118,7 @@ export function useStudyGeneration() {
         response.provider
       );
 
-      return { ...response, fromCache: false };
+      return { ...response, fromCache: false, model: model || undefined };
     },
     onSuccess: () => {
       // Invalidate history queries so they refetch
@@ -128,6 +138,21 @@ export function useCheckCache() {
         return { cached: true, study: cached.studyJson };
       }
       return { cached: false };
+    },
+  });
+}
+
+/**
+ * Hook for getting current AI configuration
+ */
+export function useAIConfig() {
+  return useMutation<{
+    provider: string | null;
+    model: string | null;
+    isClientSide: boolean;
+  }, Error, void>({
+    mutationFn: async () => {
+      return UnifiedAIService.getEffectiveConfig();
     },
   });
 }

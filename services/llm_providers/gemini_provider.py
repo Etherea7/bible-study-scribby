@@ -35,10 +35,13 @@ class GeminiProvider(LLMProvider):
             self._client = genai.Client(api_key=GOOGLE_API_KEY)
         return self._client
 
-    async def generate_study(self, reference: str, passage_text: str) -> dict:
+    async def generate_study(self, reference: str, passage_text: str, model_override: str = None) -> dict:
         """Generate a Bible study using Google Gemini."""
         if not self.is_available():
             return create_error_study("Google API key not configured")
+
+        # Use model override if provided, otherwise use default
+        effective_model = model_override or self.model
 
         try:
             client = self._get_client()
@@ -51,7 +54,7 @@ class GeminiProvider(LLMProvider):
 
             # Gemini SDK is synchronous
             response = client.models.generate_content(
-                model=self.model,
+                model=effective_model,
                 contents=full_prompt
             )
 

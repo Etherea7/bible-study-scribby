@@ -36,10 +36,13 @@ class ClaudeProvider(LLMProvider):
             self._client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
         return self._client
 
-    async def generate_study(self, reference: str, passage_text: str) -> dict:
+    async def generate_study(self, reference: str, passage_text: str, model_override: str = None) -> dict:
         """Generate a Bible study using Claude."""
         if not self.is_available():
             return create_error_study("Anthropic API key not configured")
+
+        # Use model override if provided, otherwise use default
+        effective_model = model_override or self.model
 
         try:
             client = self._get_client()
@@ -47,7 +50,7 @@ class ClaudeProvider(LLMProvider):
 
             # Claude SDK is synchronous
             message = client.messages.create(
-                model=self.model,
+                model=effective_model,
                 max_tokens=3000,
                 messages=[
                     {

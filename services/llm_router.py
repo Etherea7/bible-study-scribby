@@ -49,30 +49,55 @@ def get_available_providers() -> list[LLMProvider]:
 
 async def generate_study_with_fallback(
     reference: str,
-    passage_text: str
+    passage_text: str,
+    requested_provider: Optional[str] = None,
+    requested_model: Optional[str] = None
 ) -> Tuple[dict, str]:
     """
     Generate a Bible study using the configured LLM provider(s).
 
-    If LLM_PROVIDER is set to a specific provider, only that provider is used.
-    If LLM_PROVIDER is "auto", tries providers in fallback order until one succeeds.
+    Args:
+        reference: Bible reference string
+        passage_text: The passage text
+        requested_provider: Optional provider override from frontend (e.g., 'openrouter', 'anthropic', 'google')
+        requested_model: Optional model override from frontend
+
+    If a specific provider is requested (via parameter or LLM_PROVIDER env), only that provider is used.
+    If "auto", tries providers in fallback order until one succeeds.
 
     Returns:
         Tuple of (study_dict, provider_name)
     """
+    # Map frontend provider names to backend provider names
+    provider_mapping = {
+        'openrouter': 'openrouter',
+        'anthropic': 'claude',
+        'google': 'gemini',
+        'claude': 'claude',
+        'gemini': 'gemini',
+        'groq': 'groq',
+    }
+
+    # Determine effective provider
+    effective_provider = None
+    if requested_provider:
+        effective_provider = provider_mapping.get(requested_provider.lower(), requested_provider.lower())
+    elif LLM_PROVIDER and LLM_PROVIDER.lower() != "auto":
+        effective_provider = LLM_PROVIDER.lower()
+
     # Check if a specific provider is requested
-    if LLM_PROVIDER and LLM_PROVIDER.lower() != "auto":
-        provider = get_provider_by_name(LLM_PROVIDER)
+    if effective_provider:
+        provider = get_provider_by_name(effective_provider)
         if provider is None:
-            logger.error(f"Unknown LLM provider: {LLM_PROVIDER}")
-            return create_error_study(f"Unknown provider: {LLM_PROVIDER}"), "error"
+            logger.error(f"Unknown LLM provider: {effective_provider}")
+            return create_error_study(f"Unknown provider: {effective_provider}"), "error"
 
         if not provider.is_available():
-            logger.error(f"Provider {LLM_PROVIDER} is not available (API key missing)")
-            return create_error_study(f"Provider {LLM_PROVIDER} not configured"), "error"
+            logger.error(f"Provider {effective_provider} is not available (API key missing)")
+            return create_error_study(f"Provider {effective_provider} not configured"), "error"
 
-        logger.info(f"Using specific provider: {provider.name}")
-        study = await provider.generate_study(reference, passage_text)
+        logger.info(f"Using specific provider: {provider.name}" + (f" with model: {requested_model}" if requested_model else ""))
+        study = await provider.generate_study(reference, passage_text, model_override=requested_model)
         return study, provider.name
 
     # Auto mode: try providers in fallback order
@@ -90,7 +115,7 @@ async def generate_study_with_fallback(
     for provider in providers:
         logger.info(f"Trying provider: {provider.name}")
         try:
-            study = await provider.generate_study(reference, passage_text)
+            study = await provider.generate_study(reference, passage_text, model_override=requested_model)
 
             # Check if the study contains an error
             if study.get("error"):

@@ -23,3 +23,5 @@ Thumbs.db
 documents
 */node_modules
 */package-lock.json
+.playwright-mcp
+archived/

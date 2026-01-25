@@ -4,11 +4,13 @@ interface CardProps {
   children: React.ReactNode;
   className?: string;
   variant?: 'default' | 'elevated' | 'glass';
+  onClick?: () => void;
 }
 
-export function Card({ children, className, variant = 'default' }: CardProps) {
+export function Card({ children, className, variant = 'default', onClick }: CardProps) {
   return (
     <div
+      onClick={onClick}
       className={clsx(
         'card-premium',
         {

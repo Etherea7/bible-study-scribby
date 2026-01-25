@@ -35,10 +35,13 @@ class GroqProvider(LLMProvider):
             self._client = Groq(api_key=GROQ_API_KEY)
         return self._client
 
-    async def generate_study(self, reference: str, passage_text: str) -> dict:
+    async def generate_study(self, reference: str, passage_text: str, model_override: str = None) -> dict:
         """Generate a Bible study using Groq/Llama 3.3."""
         if not self.is_available():
             return create_error_study("Groq API key not configured")
+
+        # Use model override if provided, otherwise use default
+        effective_model = model_override or self.model
 
         try:
             client = self._get_client()
@@ -46,7 +49,7 @@ class GroqProvider(LLMProvider):
 
             # Groq SDK is synchronous but fast
             response = client.chat.completions.create(
-                model=self.model,
+                model=effective_model,
                 messages=[
                     {
                         "role": "system",

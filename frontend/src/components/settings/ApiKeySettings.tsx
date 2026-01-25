@@ -1,10 +1,10 @@
 /**
- * ApiKeySettings - Modal for managing user API keys
+ * ApiKeySettings - Modal for managing user API keys and model preferences
  *
  * Allows users to configure their own API keys for:
  * - ESV Bible API (for passage fetching)
- * - OpenRouter (for LLM calls - CORS-enabled)
- * - Groq/Gemini/Claude (via backend proxy)
+ * - OpenRouter (for LLM calls - CORS-enabled, multiple models)
+ * - Anthropic/Google (via backend proxy)
  *
  * Keys are stored in browser IndexedDB and never sent to our backend.
  */
@@ -22,9 +22,11 @@ import {
   Trash2,
   ExternalLink,
   Info,
+  ChevronDown,
 } from 'lucide-react';
 import { useApiKeys } from '../../hooks/useApiKeys';
-import type { ApiKeySettings as ApiKeySettingsType, LLMProvider } from '../../types';
+import type { ApiKeySettings as ApiKeySettingsType, LLMProvider, ProviderModelSelection } from '../../types';
+import { PROVIDER_MODELS, PROVIDER_INFO, DEFAULT_MODELS } from '../../types';
 
 interface ApiKeySettingsProps {
   isOpen: boolean;
@@ -89,6 +91,62 @@ function KeyInput({ label, value, onChange, placeholder, helpUrl, helpText }: Ke
   );
 }
 
+interface ModelSelectorProps {
+  provider: Exclude<LLMProvider, 'auto'>;
+  selectedModel: string;
+  onChange: (modelId: string) => void;
+  disabled?: boolean;
+}
+
+function ModelSelector({ provider, selectedModel, onChange, disabled }: ModelSelectorProps) {
+  const models = PROVIDER_MODELS[provider];
+  const providerInfo = PROVIDER_INFO[provider];
+
+  return (
+    <div className="space-y-1.5">
+      <label className="text-sm font-medium text-[var(--text-primary)]">
+        {providerInfo.name} Model
+      </label>
+      <div className="relative">
+        <select
+          value={selectedModel}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="
+            w-full px-3 py-2 pr-8 appearance-none
+            bg-[var(--bg-surface)] border border-[var(--border-color)]
+            rounded-lg text-sm text-[var(--text-primary)]
+            focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50
+            disabled:opacity-50 disabled:cursor-not-allowed
+          "
+        >
+          {models.map((model) => (
+            <option key={model.id} value={model.id}>
+              {model.name} {model.isFree && '(Free)'}
+            </option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] pointer-events-none" />
+      </div>
+      {models.find(m => m.id === selectedModel)?.description && (
+        <p className="text-xs text-[var(--text-muted)]">
+          {models.find(m => m.id === selectedModel)?.description}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Local form state type (all strings for form handling)
+interface LocalKeyState {
+  esvApiKey: string;
+  openrouterApiKey: string;
+  anthropicApiKey: string;
+  googleApiKey: string;
+  preferredProvider: LLMProvider;
+  selectedModels: ProviderModelSelection;
+}
+
 export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
   const {
     apiKeys,
@@ -99,13 +157,17 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
   } = useApiKeys();
 
   // Local state for form
-  const [localKeys, setLocalKeys] = useState<ApiKeySettingsType>({
+  const [localKeys, setLocalKeys] = useState<LocalKeyState>({
     esvApiKey: '',
     openrouterApiKey: '',
-    groqApiKey: '',
-    geminiApiKey: '',
     anthropicApiKey: '',
+    googleApiKey: '',
     preferredProvider: 'auto',
+    selectedModels: {
+      openrouter: DEFAULT_MODELS.openrouter,
+      anthropic: DEFAULT_MODELS.anthropic,
+      google: DEFAULT_MODELS.google,
+    },
   });
   const [hasChanges, setHasChanges] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -116,10 +178,14 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
       setLocalKeys({
         esvApiKey: apiKeys.esvApiKey || '',
         openrouterApiKey: apiKeys.openrouterApiKey || '',
-        groqApiKey: apiKeys.groqApiKey || '',
-        geminiApiKey: apiKeys.geminiApiKey || '',
         anthropicApiKey: apiKeys.anthropicApiKey || '',
+        googleApiKey: apiKeys.googleApiKey || '',
         preferredProvider: apiKeys.preferredProvider,
+        selectedModels: {
+          openrouter: apiKeys.selectedModels?.openrouter || DEFAULT_MODELS.openrouter,
+          anthropic: apiKeys.selectedModels?.anthropic || DEFAULT_MODELS.anthropic,
+          google: apiKeys.selectedModels?.google || DEFAULT_MODELS.google,
+        },
       });
     }
   }, [apiKeys, isLoading]);
@@ -129,10 +195,12 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
     const changed =
       localKeys.esvApiKey !== (apiKeys.esvApiKey || '') ||
       localKeys.openrouterApiKey !== (apiKeys.openrouterApiKey || '') ||
-      localKeys.groqApiKey !== (apiKeys.groqApiKey || '') ||
-      localKeys.geminiApiKey !== (apiKeys.geminiApiKey || '') ||
       localKeys.anthropicApiKey !== (apiKeys.anthropicApiKey || '') ||
-      localKeys.preferredProvider !== apiKeys.preferredProvider;
+      localKeys.googleApiKey !== (apiKeys.googleApiKey || '') ||
+      localKeys.preferredProvider !== apiKeys.preferredProvider ||
+      localKeys.selectedModels.openrouter !== (apiKeys.selectedModels?.openrouter || DEFAULT_MODELS.openrouter) ||
+      localKeys.selectedModels.anthropic !== (apiKeys.selectedModels?.anthropic || DEFAULT_MODELS.anthropic) ||
+      localKeys.selectedModels.google !== (apiKeys.selectedModels?.google || DEFAULT_MODELS.google);
     setHasChanges(changed);
     setSaveSuccess(false);
   }, [localKeys, apiKeys]);
@@ -141,10 +209,10 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
     const keysToSave: ApiKeySettingsType = {
       esvApiKey: localKeys.esvApiKey || undefined,
       openrouterApiKey: localKeys.openrouterApiKey || undefined,
-      groqApiKey: localKeys.groqApiKey || undefined,
-      geminiApiKey: localKeys.geminiApiKey || undefined,
       anthropicApiKey: localKeys.anthropicApiKey || undefined,
+      googleApiKey: localKeys.googleApiKey || undefined,
       preferredProvider: localKeys.preferredProvider,
+      selectedModels: localKeys.selectedModels,
     };
     const success = await saveApiKeys(keysToSave);
     if (success) {
@@ -159,16 +227,30 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
       setLocalKeys({
         esvApiKey: '',
         openrouterApiKey: '',
-        groqApiKey: '',
-        geminiApiKey: '',
         anthropicApiKey: '',
+        googleApiKey: '',
         preferredProvider: 'auto',
+        selectedModels: {
+          openrouter: DEFAULT_MODELS.openrouter,
+          anthropic: DEFAULT_MODELS.anthropic,
+          google: DEFAULT_MODELS.google,
+        },
       });
     }
   };
 
-  const updateKey = (key: keyof ApiKeySettingsType, value: string) => {
+  const updateKey = (key: keyof Omit<LocalKeyState, 'selectedModels'>, value: string | LLMProvider) => {
     setLocalKeys((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateModel = (provider: keyof ProviderModelSelection, modelId: string) => {
+    setLocalKeys((prev) => ({
+      ...prev,
+      selectedModels: {
+        ...prev.selectedModels,
+        [provider]: modelId,
+      },
+    }));
   };
 
   return createPortal(
@@ -237,28 +319,45 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
                   </div>
                 </div>
 
-                {/* Required Keys for Client-Side */}
+                {/* ESV API Key */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide">
-                    Required for Client-Side Generation
+                    Bible Text API
                   </h3>
 
                   <KeyInput
                     label="ESV Bible API Key"
-                    value={localKeys.esvApiKey || ''}
+                    value={localKeys.esvApiKey}
                     onChange={(v) => updateKey('esvApiKey', v)}
                     placeholder="Enter your ESV API key"
                     helpUrl="https://api.esv.org/"
                     helpText="Required to fetch Bible passage text"
                   />
+                </div>
+
+                {/* OpenRouter (Primary - CORS-enabled) */}
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide">
+                    OpenRouter (Recommended)
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {PROVIDER_INFO.openrouter.description}
+                  </p>
 
                   <KeyInput
                     label="OpenRouter API Key"
-                    value={localKeys.openrouterApiKey || ''}
+                    value={localKeys.openrouterApiKey}
                     onChange={(v) => updateKey('openrouterApiKey', v)}
                     placeholder="Enter your OpenRouter API key"
                     helpUrl="https://openrouter.ai/keys"
-                    helpText="Required for AI study generation (free tier available)"
+                    helpText="Free tier available. Works directly in browser."
+                  />
+
+                  <ModelSelector
+                    provider="openrouter"
+                    selectedModel={localKeys.selectedModels.openrouter || DEFAULT_MODELS.openrouter}
+                    onChange={(modelId) => updateModel('openrouter', modelId)}
+                    disabled={!localKeys.openrouterApiKey}
                   />
                 </div>
 
@@ -273,42 +372,56 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
                   <span className="text-sm text-[var(--text-secondary)]">
                     {localKeys.esvApiKey && localKeys.openrouterApiKey
                       ? 'Ready for client-side generation'
-                      : 'Configure both keys to enable client-side generation'}
+                      : 'Configure ESV + OpenRouter keys for client-side generation'}
                   </span>
                 </div>
 
-                {/* Optional Keys (for backend proxy) */}
+                {/* Alternative Providers */}
                 <div className="space-y-4">
                   <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide">
-                    Optional (Backend Proxy)
+                    Alternative Providers (Server Required)
                   </h3>
                   <p className="text-xs text-[var(--text-muted)]">
-                    These keys require the backend server to be running.
+                    These providers require the backend server to be running as they don't support CORS.
                   </p>
 
-                  <KeyInput
-                    label="Groq API Key"
-                    value={localKeys.groqApiKey || ''}
-                    onChange={(v) => updateKey('groqApiKey', v)}
-                    placeholder="Enter your Groq API key"
-                    helpUrl="https://console.groq.com/keys"
-                  />
+                  {/* Anthropic */}
+                  <div className="p-3 bg-[var(--bg-surface)] rounded-lg space-y-3">
+                    <KeyInput
+                      label="Anthropic API Key"
+                      value={localKeys.anthropicApiKey}
+                      onChange={(v) => updateKey('anthropicApiKey', v)}
+                      placeholder="Enter your Anthropic API key"
+                      helpUrl="https://console.anthropic.com/settings/keys"
+                      helpText={PROVIDER_INFO.anthropic.description}
+                    />
 
-                  <KeyInput
-                    label="Google Gemini API Key"
-                    value={localKeys.geminiApiKey || ''}
-                    onChange={(v) => updateKey('geminiApiKey', v)}
-                    placeholder="Enter your Gemini API key"
-                    helpUrl="https://aistudio.google.com/apikey"
-                  />
+                    <ModelSelector
+                      provider="anthropic"
+                      selectedModel={localKeys.selectedModels.anthropic || DEFAULT_MODELS.anthropic}
+                      onChange={(modelId) => updateModel('anthropic', modelId)}
+                      disabled={!localKeys.anthropicApiKey}
+                    />
+                  </div>
 
-                  <KeyInput
-                    label="Anthropic (Claude) API Key"
-                    value={localKeys.anthropicApiKey || ''}
-                    onChange={(v) => updateKey('anthropicApiKey', v)}
-                    placeholder="Enter your Anthropic API key"
-                    helpUrl="https://console.anthropic.com/settings/keys"
-                  />
+                  {/* Google */}
+                  <div className="p-3 bg-[var(--bg-surface)] rounded-lg space-y-3">
+                    <KeyInput
+                      label="Google AI API Key"
+                      value={localKeys.googleApiKey}
+                      onChange={(v) => updateKey('googleApiKey', v)}
+                      placeholder="Enter your Google AI API key"
+                      helpUrl="https://aistudio.google.com/apikey"
+                      helpText={PROVIDER_INFO.google.description}
+                    />
+
+                    <ModelSelector
+                      provider="google"
+                      selectedModel={localKeys.selectedModels.google || DEFAULT_MODELS.google}
+                      onChange={(modelId) => updateModel('google', modelId)}
+                      disabled={!localKeys.googleApiKey}
+                    />
+                  </div>
                 </div>
 
                 {/* Provider Preference */}
@@ -316,22 +429,27 @@ export function ApiKeySettings({ isOpen, onClose }: ApiKeySettingsProps) {
                   <label className="text-sm font-medium text-[var(--text-primary)]">
                     Preferred Provider
                   </label>
-                  <select
-                    value={localKeys.preferredProvider}
-                    onChange={(e) => updateKey('preferredProvider', e.target.value as LLMProvider)}
-                    className="
-                      w-full px-3 py-2
-                      bg-[var(--bg-surface)] border border-[var(--border-color)]
-                      rounded-lg text-sm text-[var(--text-primary)]
-                      focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50
-                    "
-                  >
-                    <option value="auto">Auto (OpenRouter first, then fallback)</option>
-                    <option value="openrouter">OpenRouter only</option>
-                    <option value="groq">Groq (via backend)</option>
-                    <option value="gemini">Gemini (via backend)</option>
-                    <option value="claude">Claude (via backend)</option>
-                  </select>
+                  <div className="relative">
+                    <select
+                      value={localKeys.preferredProvider}
+                      onChange={(e) => updateKey('preferredProvider', e.target.value as LLMProvider)}
+                      className="
+                        w-full px-3 py-2 pr-8 appearance-none
+                        bg-[var(--bg-surface)] border border-[var(--border-color)]
+                        rounded-lg text-sm text-[var(--text-primary)]
+                        focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)]/50
+                      "
+                    >
+                      <option value="auto">Auto (Use best available)</option>
+                      <option value="openrouter">OpenRouter</option>
+                      <option value="anthropic">Anthropic (Claude)</option>
+                      <option value="google">Google (Gemini)</option>
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-muted)] pointer-events-none" />
+                  </div>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Auto mode prefers OpenRouter (client-side), then falls back to other configured providers via server.
+                  </p>
                 </div>
               </div>
 
