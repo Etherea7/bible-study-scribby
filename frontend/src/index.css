@@ -55,6 +55,12 @@
   --color-sand: #E8E0D0;
   --color-taupe: #C4B8A5;
 
+  /* Parchment colors for scroll animation */
+  --parchment-bg: #F5F0E6;
+  --parchment-bg-dark: #1E293B;
+  --parchment-stain: #C4A77D;
+  --parchment-stain-dark: #3D4A5C;
+
   /* Accent colors for runtime */
   --color-observation: #2B9EA8;
   --color-observation-light: #E8F6F7;
@@ -62,32 +68,42 @@
   --color-interpretation: #7C3AED;
   --color-interpretation-light: #EDE9FE;
   --color-interpretation-dark: #5B21B6;
-  --color-accent: #B8860B;
-  --color-accent-light: #DAA520;
+  /* More vibrant accent */
+  --color-accent: #D97706; /* Amber-600 */
+  --color-accent-hover: #B45309; /* Amber-700 */
+  --color-accent-light: #FCD34D; /* Amber-300 */
 }
 
 .dark {
-  --bg-main: #1A1F2E;
-  --bg-surface: #242B3D;
-  --bg-elevated: #2D3548;
-  --text-primary: #F7FAFC;
-  --text-secondary: #CBD5E0;
-  --text-muted: #A0AEC0;
-  --border-color: #3D4A5C;
+  /* Deeper, richer dark mode */
+  --bg-main: #0F172A; /* Slate-900 */
+  --bg-surface: #1E293B; /* Slate-800 */
+  --bg-elevated: #334155; /* Slate-700 */
+  --text-primary: #F8FAFC; /* Slate-50 */
+  --text-secondary: #CBD5E1; /* Slate-300 */
+  --text-muted: #94A3B8; /* Slate-400 */
+  --border-color: #334155; /* Slate-700 */
 
   /* Dark mode warm palette */
-  --color-sand: #3D4A5C;
-  --color-taupe: #4A5568;
+  --color-sand: #334155;
+  --color-taupe: #475569;
+
+  /* Parchment colors for dark mode */
+  --parchment-bg: #1E293B;
+  --parchment-bg-dark: #1E293B;
+  --parchment-stain: #3D4A5C;
+  --parchment-stain-dark: #3D4A5C;
 
   /* Accent colors for dark mode */
-  --color-observation: #3DD0DD;
-  --color-observation-light: rgba(43, 158, 168, 0.2);
-  --color-observation-dark: #2B9EA8;
-  --color-interpretation: #A78BFA;
-  --color-interpretation-light: rgba(124, 58, 237, 0.2);
+  --color-observation: #22D3EE; /* Cyan-400 */
+  --color-observation-light: rgba(34, 211, 238, 0.1);
+  --color-observation-dark: #0891B2;
+  --color-interpretation: #A78BFA; /* Violet-400 */
+  --color-interpretation-light: rgba(167, 139, 250, 0.1);
   --color-interpretation-dark: #7C3AED;
-  --color-accent: #DAA520;
-  --color-accent-light: #F0C040;
+  --color-accent: #F59E0B; /* Amber-500 */
+  --color-accent-hover: #D97706; /* Amber-600 */
+  --color-accent-light: rgba(245, 158, 11, 0.2);
 
   color-scheme: dark;
 }
@@ -633,4 +649,80 @@ body {
     font-size: 12pt;
     line-height: 1.6;
   }
+}
+/* Text Shimmer Animation - Fix for separate gradient text */
+@keyframes text-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-text-shimmer {
+  background-size: 200% auto;
+  animation: text-shimmer 3s linear infinite;
+}
+
+/* ============================================================================
+   PARCHMENT AESTHETIC STYLES
+   Reusable parchment background for pages (without scroll animation)
+   ============================================================================ */
+
+.parchment-bg {
+  position: relative;
+  background-color: var(--parchment-bg);
+  isolation: isolate;
+}
+
+.parchment-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  /* Subtle ruled lines */
+  background-image: linear-gradient(to bottom, rgba(139, 69, 19, 0.06) 1px, transparent 1px);
+  background-size: 100% 2rem;
+  background-position: 0 1rem;
+}
+
+.parchment-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  /* Edge darkening */
+  background: linear-gradient(180deg,
+    rgba(139, 69, 19, 0.04) 0%, transparent 2%,
+    transparent 98%, rgba(139, 69, 19, 0.04) 100%);
+}
+
+.dark .parchment-bg {
+  background-color: var(--parchment-bg-dark);
+}
+
+.dark .parchment-bg::before {
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+}
+
+.dark .parchment-bg::after {
+  background: linear-gradient(180deg,
+    rgba(0, 0, 0, 0.08) 0%, transparent 2%,
+    transparent 98%, rgba(0, 0, 0, 0.08) 100%);
+}
+
+/* ============================================================================
+   PARCHMENT SURFACE - Used by ScrollContainer
+   Explicit classes for proper dark mode support (Tailwind can't parse CSS vars)
+   ============================================================================ */
+
+.parchment-surface {
+  background-color: #F5F0E6; /* Light mode - cream parchment */
+}
+
+.dark .parchment-surface {
+  background-color: #1E293B; /* Dark mode - slate-800 */
 }

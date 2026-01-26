@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Header } from './components/layout/Header';
 import { LandingPage, HomePage, HistoryPage, SavedPage } from './pages';
@@ -12,21 +12,31 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppContent() {
+  const location = useLocation();
+  const isLandingPage = location.pathname === '/';
+
+  return (
+    <div className="min-h-screen">
+      {/* Header is rendered outside scroll on non-landing pages */}
+      {!isLandingPage && <Header />}
+      <main>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/editor" element={<HomePage />} />
+          <Route path="/history" element={<HistoryPage />} />
+          <Route path="/saved" element={<SavedPage />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <div className="min-h-screen">
-          <Header />
-          <main>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/editor" element={<HomePage />} />
-              <Route path="/history" element={<HistoryPage />} />
-              <Route path="/saved" element={<SavedPage />} />
-            </Routes>
-          </main>
-        </div>
+        <AppContent />
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -268,10 +268,10 @@ export function HomePage() {
   const hasValidationErrors = Object.keys(editableStudy.validationErrors).length > 0;
 
   return (
-    <div className="min-h-screen bg-[var(--bg-main)]">
+    <div className="min-h-screen bg-[var(--bg-main)] parchment-bg">
       {generateMutation.isPending && <LoadingOverlay />}
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Discernment Disclaimer */}
         <div className="disclaimer-card flex items-start gap-3">
           <Info className="h-5 w-5 text-[var(--color-accent)] flex-shrink-0 mt-0.5" />
