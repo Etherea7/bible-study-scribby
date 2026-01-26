@@ -7,28 +7,31 @@ interface ScrollContainerProps {
 }
 
 /**
- * Full-width scroll container with:
- * - Wooden handles spanning 100vw (no end caps)
- * - Navbar integrated INTO the top handle
- * - Parchment area with proper dark mode support
- * - Smooth unrolling animation
+ * Full-width scroll container with unrolling animation:
+ * - Both handles start stacked in the center
+ * - They split apart (top goes up, bottom goes down)
+ * - Parchment reveals as they separate
+ * - Navbar fades in once fully unrolled
  */
 export function ScrollContainer({ children }: ScrollContainerProps) {
     const [animationComplete, setAnimationComplete] = useState(false);
+    const [navbarVisible, setNavbarVisible] = useState(false);
 
     // Animation timing
-    const handleDuration = 0.6;
-    const parchmentDelay = 0.2;
-    const parchmentDuration = 0.8;
-    const contentDelay = parchmentDelay + parchmentDuration - 0.2;
+    const unrollDuration = 1.0;
+    const unrollEase = [0.22, 1, 0.36, 1]; // Custom easeOutExpo-like
 
     return (
         <div className="fixed inset-0 bg-[var(--bg-main)] overflow-hidden">
-            {/* Top Handle with Integrated Navbar */}
+            {/* Top Handle - starts at center, moves to top */}
             <motion.div
-                initial={{ y: '-100%' }}
+                initial={{ y: 'calc(50vh - 28px)' }} // Start at center (half viewport minus half handle height)
                 animate={{ y: 0 }}
-                transition={{ duration: handleDuration, ease: 'easeOut' }}
+                transition={{
+                    duration: unrollDuration,
+                    ease: unrollEase,
+                }}
+                onAnimationComplete={() => setNavbarVisible(true)}
                 className="fixed top-0 left-0 right-0 h-14 sm:h-16 z-50"
             >
                 {/* Wooden bar - full width, rounded bottom */}
@@ -58,27 +61,34 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                     <div className="absolute top-1/2 left-[15%] -translate-y-1/2 w-3 h-3 rounded-full bg-[#4A3728] opacity-30" />
                     <div className="absolute top-1/3 right-[20%] w-2 h-2 rounded-full bg-[#4A3728] opacity-25" />
 
-                    {/* Navbar content */}
-                    <div className="relative z-10 h-full">
+                    {/* Navbar content - fades in after unroll */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: navbarVisible ? 1 : 0 }}
+                        transition={{ duration: 0.4 }}
+                        className="relative z-10 h-full"
+                    >
                         <ScrollNavbar />
-                    </div>
+                    </motion.div>
                 </div>
             </motion.div>
 
-            {/* Parchment Area - full width */}
+            {/* Parchment Area - reveals as handles separate */}
             <motion.div
-                initial={{ scaleY: 0, opacity: 0.5 }}
-                animate={{ scaleY: 1, opacity: 1 }}
+                initial={{
+                    clipPath: 'inset(50% 0 50% 0)', // Start clipped to nothing (hidden)
+                    opacity: 0.8
+                }}
+                animate={{
+                    clipPath: 'inset(0% 0 0% 0)', // Reveal fully
+                    opacity: 1
+                }}
                 transition={{
-                    duration: parchmentDuration,
-                    delay: parchmentDelay,
-                    ease: [0.22, 1, 0.36, 1],
+                    duration: unrollDuration,
+                    ease: unrollEase,
                 }}
                 onAnimationComplete={() => setAnimationComplete(true)}
                 className="fixed top-14 sm:top-16 bottom-14 sm:bottom-16 left-0 right-0 overflow-auto"
-                style={{
-                    transformOrigin: 'top',
-                }}
             >
                 {/* Parchment background with proper dark mode */}
                 <div className="min-h-full parchment-surface relative">
@@ -193,7 +203,7 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                     <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: animationComplete ? 1 : 0 }}
-                        transition={{ duration: 0.5 }}
+                        transition={{ duration: 0.5, delay: 0.1 }}
                         className="relative z-10 px-4 sm:px-8 py-6 sm:py-10"
                     >
                         {children}
@@ -201,11 +211,14 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                 </div>
             </motion.div>
 
-            {/* Bottom Handle */}
+            {/* Bottom Handle - starts at center, moves to bottom */}
             <motion.div
-                initial={{ y: '100%' }}
+                initial={{ y: 'calc(-50vh + 28px)' }} // Start at center (negative because it's positioned at bottom)
                 animate={{ y: 0 }}
-                transition={{ duration: handleDuration, ease: 'easeOut' }}
+                transition={{
+                    duration: unrollDuration,
+                    ease: unrollEase,
+                }}
                 className="fixed bottom-0 left-0 right-0 h-14 sm:h-16 z-50"
             >
                 {/* Wooden bar - full width, rounded top */}
