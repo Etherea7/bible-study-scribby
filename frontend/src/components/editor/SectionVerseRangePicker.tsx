@@ -27,7 +27,7 @@ interface SectionVerseRangePickerProps {
 
 export function SectionVerseRangePicker({
   passageRange,
-  existingSections = [],
+  existingSections: _existingSections = [],
   onAdd,
   onCancel,
 }: SectionVerseRangePickerProps) {

@@ -15,10 +15,6 @@ import type { PassageRange } from '../../utils/bibleData';
 import {
   modalOverlay,
   modalContent,
-  slideInLeft,
-  slideInRight,
-  buttonHover,
-  buttonTap,
   springGentle,
 } from '../../utils/animations';
 
@@ -135,12 +131,12 @@ export function CreateStudyWizard({ onClose }: CreateStudyWizardProps) {
 
   const passageRange: PassageRange | null = selectedPassage
     ? {
-        book: selectedPassage.book,
-        startChapter: selectedPassage.startChapter,
-        startVerse: selectedPassage.startVerse,
-        endChapter: selectedPassage.endChapter,
-        endVerse: selectedPassage.endVerse,
-      }
+      book: selectedPassage.book,
+      startChapter: selectedPassage.startChapter,
+      startVerse: selectedPassage.startVerse,
+      endChapter: selectedPassage.endChapter,
+      endVerse: selectedPassage.endVerse,
+    }
     : null;
 
   // Using optimized animations from animations.ts
@@ -217,10 +213,9 @@ export function CreateStudyWizard({ onClose }: CreateStudyWizardProps) {
                   <div
                     className={`
                       h-1.5 rounded-full flex-1 transition-all duration-300
-                      ${
-                        s === step
-                          ? 'bg-[var(--color-observation)]'
-                          : index < ['select', 'verify', 'method'].indexOf(step)
+                      ${s === step
+                        ? 'bg-[var(--color-observation)]'
+                        : index < ['select', 'verify', 'method'].indexOf(step)
                           ? 'bg-[var(--color-observation)]/50'
                           : 'bg-[var(--border-color)]'
                       }
@@ -246,7 +241,7 @@ export function CreateStudyWizard({ onClose }: CreateStudyWizardProps) {
                     exit="exit"
                   >
                     <PassageSelector
-                      onSubmit={() => {}} // No-op, using onChange instead
+                      onSubmit={() => { }} // No-op, using onChange instead
                       onChange={handlePassageChange}
                       loading={false}
                       hidePreview={true}

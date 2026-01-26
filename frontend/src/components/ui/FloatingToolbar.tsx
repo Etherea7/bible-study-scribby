@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RefreshCw, Minimize2, Loader2, X, HelpCircle, Link2 } from 'lucide-react';
 import { rephraseText, shortenText } from '../../api/enhanceClient';
-import { floatingToolbar, fadeInDown, buttonTap } from '../../utils/animations';
+import { floatingToolbar } from '../../utils/animations';
 
 interface FloatingToolbarProps {
   selectedText: string;

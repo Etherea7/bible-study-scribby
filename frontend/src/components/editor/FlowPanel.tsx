@@ -30,7 +30,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { EditableTextField } from '../ui/EditableTextField';
 import { EditableThemeList } from '../study/EditableThemeList';
 import { MagicDraftButton } from './MagicDraftButton';
-import { SectionVerseRangePicker, ParsedReference } from './SectionVerseRangePicker';
+import { SectionVerseRangePicker, type ParsedReference } from './SectionVerseRangePicker';
 import {
   draftPurposeStatement,
   draftHistoricalContext,
@@ -96,12 +96,12 @@ export function FlowPanel({
   const parsedRef = parseReference(reference);
   const passageRange: ParsedReference | null = parsedRef
     ? {
-        book: parsedRef.book,
-        startChapter: parsedRef.startChapter,
-        startVerse: parsedRef.startVerse ?? 1,
-        endChapter: parsedRef.endChapter ?? parsedRef.startChapter,
-        endVerse: parsedRef.endVerse ?? getVerseCount(parsedRef.book, parsedRef.endChapter ?? parsedRef.startChapter),
-      }
+      book: parsedRef.book,
+      startChapter: parsedRef.startChapter,
+      startVerse: parsedRef.startVerse ?? 1,
+      endChapter: parsedRef.endChapter ?? parsedRef.startChapter,
+      endVerse: parsedRef.endVerse ?? getVerseCount(parsedRef.book, parsedRef.endChapter ?? parsedRef.startChapter),
+    }
     : null;
 
   // Handle "Generate Flow Only" - generates purpose, context, themes, and sections

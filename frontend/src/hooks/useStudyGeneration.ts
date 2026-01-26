@@ -54,7 +54,7 @@ export function useStudyGeneration() {
 
       // Check for user API keys and settings
       const apiKeys = await getApiKeys();
-      const { provider, model, apiKey } = await getEffectiveProviderAndModel();
+      const { provider, model } = await getEffectiveProviderAndModel();
 
       // Check if we can do client-side generation
       const canUseClientSide = Boolean(

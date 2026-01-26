@@ -10,11 +10,11 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, ChevronLeft, BookText, List, FileText } from 'lucide-react';
+import { ChevronRight, BookText, List } from 'lucide-react';
 import { PassagePanel } from './PassagePanel';
 import { FlowPanel } from './FlowPanel';
 import { StudyContentPanel } from './StudyContentPanel';
-import { panelSlideLeft, panelSlideRight, fadeIn, springGentle } from '../../utils/animations';
+import { panelSlideLeft, fadeIn, springGentle } from '../../utils/animations';
 import type {
   EditableStudyFull,
   EditableQuestionType,
