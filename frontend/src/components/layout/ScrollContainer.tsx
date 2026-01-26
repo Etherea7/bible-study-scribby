@@ -19,7 +19,7 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
 
     // Animation timing
     const unrollDuration = 1.0;
-    const unrollEase = [0.22, 1, 0.36, 1]; // Custom easeOutExpo-like
+    const unrollEase = [0.22, 1, 0.36, 1] as const; // Custom easeOutExpo-like
 
     return (
         <div className="fixed inset-0 bg-[var(--bg-main)] overflow-hidden">
