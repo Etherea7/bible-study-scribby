@@ -8,7 +8,7 @@ interface UseScrollAnimationOptions {
   /** Sensitivity to scroll speed (default: 0.3) */
   sensitivity?: number;
   /** The scrollable element ref (default: window) */
-  scrollRef?: React.RefObject<HTMLElement>;
+  scrollRef?: React.RefObject<HTMLElement | null>;
 }
 
 interface UseScrollAnimationReturn {
@@ -26,9 +26,9 @@ export function useScrollAnimation(
   options: UseScrollAnimationOptions = {}
 ): UseScrollAnimationReturn {
   const {
-    maxRotation = 12,
-    velocityDecay = 0.92,
-    sensitivity = 0.3,
+    maxRotation = 25,
+    velocityDecay = 0.95,
+    sensitivity = 0.8,
     scrollRef,
   } = options;
 

@@ -444,6 +444,7 @@ export function HomePage() {
             onUpdateSectionPassage={editableStudy.updateSectionPassage}
             onAddSection={editableStudy.addSection}
             onRemoveSection={editableStudy.removeSection}
+            onReorderSections={editableStudy.reorderSections}
             onUpdateStudyNotes={editableStudy.updateStudyNotes}
           />
         )}

@@ -30,6 +30,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { EditableTextField } from '../ui/EditableTextField';
 import { EditableThemeList } from '../study/EditableThemeList';
 import { MagicDraftButton } from './MagicDraftButton';
+import { RichTextEditor } from '../ui/RichTextEditor';
 import { SectionVerseRangePicker, type ParsedReference } from './SectionVerseRangePicker';
 import {
   draftPurposeStatement,
@@ -400,22 +401,11 @@ export function FlowPanel({
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0 pb-3">
-            <textarea
+            <RichTextEditor
               value={study.studyNotes || ''}
-              onChange={(e) => onUpdateStudyNotes(e.target.value)}
+              onChange={onUpdateStudyNotes}
               placeholder="Write your observations, main points, or outline for this passage. These notes can be used to guide AI generation..."
-              rows={4}
-              className="
-                w-full px-3 py-2
-                bg-[var(--bg-surface)]
-                border border-[var(--border-color)]
-                rounded-lg
-                text-sm
-                text-[var(--text-primary)]
-                placeholder:text-[var(--text-muted)]
-                focus:outline-none focus:ring-2 focus:ring-[var(--color-interpretation)]/30
-                resize-y
-              "
+              minHeight="120px"
             />
             {hasNotes && (
               <p className="mt-1.5 text-xs text-[var(--text-muted)]">

@@ -30,6 +30,24 @@ function WoodGrainOverlay() {
   );
 }
 
+/** Visual ridges for the bottom handle to make rotation visible */
+function WoodHandleRidges() {
+  return (
+    <div className="absolute inset-x-0 inset-y-2 flex flex-col justify-around pointer-events-none">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="w-full h-1 rounded-full"
+          style={{
+            background: 'linear-gradient(180deg, rgba(0,0,0,0.2), rgba(255,255,255,0.1), rgba(0,0,0,0.2))',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.3)',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 /** Wood knot details for handles */
 function WoodKnots({ position }: { position: 'top' | 'bottom' }) {
   if (position === 'top') {
@@ -181,9 +199,9 @@ export function ScrollLayout({
   // Get scroll animation values
   const { handleRotation, prefersReducedMotion } = useScrollAnimation({
     scrollRef: scrollAreaRef,
-    maxRotation: 12,
-    velocityDecay: 0.92,
-    sensitivity: 0.3,
+    maxRotation: 25,
+    velocityDecay: 0.95,
+    sensitivity: 0.8,
   });
 
   // Spring animation for smooth rotation
@@ -286,8 +304,7 @@ export function ScrollLayout({
         }}
         className="fixed bottom-0 left-0 right-0 h-14 sm:h-16 z-50"
         style={{
-          perspective: '200px',
-          transformStyle: 'preserve-3d',
+          perspective: '500px',
         }}
       >
         {/* Rotating wrapper for 3D effect */}
@@ -295,6 +312,7 @@ export function ScrollLayout({
           style={{
             rotateX: prefersReducedMotion ? 0 : springRotation,
             transformOrigin: 'center top',
+            transformStyle: 'preserve-3d',
             height: '100%',
           }}
         >
@@ -310,6 +328,7 @@ export function ScrollLayout({
           >
             <WoodGrainOverlay />
             <WoodKnots position="bottom" />
+            <WoodHandleRidges />
           </div>
         </motion.div>
       </motion.div>

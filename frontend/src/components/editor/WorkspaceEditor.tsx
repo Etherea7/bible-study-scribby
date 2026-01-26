@@ -61,6 +61,7 @@ interface WorkspaceEditorProps {
   onUpdateSectionPassage: (sectionId: string, passage: string) => void;
   onAddSection: (passageSection: string, heading: string) => void;
   onRemoveSection: (sectionId: string) => void;
+  onReorderSections: (fromIndex: number, toIndex: number) => void;
 
   // Study-level notes
   onUpdateStudyNotes: (notes: string) => void;
@@ -94,6 +95,7 @@ export function WorkspaceEditor({
   onUpdateSectionPassage,
   onAddSection,
   onRemoveSection,
+  onReorderSections,
   onUpdateStudyNotes,
 }: WorkspaceEditorProps) {
   const [isPassageCollapsed, setIsPassageCollapsed] = useState(false);
@@ -281,6 +283,7 @@ export function WorkspaceEditor({
           onUpdateSectionPassage={onUpdateSectionPassage}
           onAddSection={onAddSection}
           onRemoveSection={onRemoveSection}
+          onReorderSections={onReorderSections}
         />
       </div>
     </div>

@@ -34,6 +34,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { EditableTextField } from '../ui/EditableTextField';
 import { EditableThemeList } from '../study/EditableThemeList';
 import { SortableQuestionList } from '../study/SortableQuestionList';
+import { SortableSectionList } from '../study/SortableSectionList';
 import { AddQuestionButton } from '../study/AddQuestionButton';
 import { EditableQuestionCard } from '../study/EditableQuestionCard';
 import { EditableCrossReferences } from '../study/EditableCrossReferences';
@@ -87,6 +88,7 @@ interface StudyContentPanelProps {
   onUpdateSectionPassage?: (sectionId: string, passage: string) => void;
   onAddSection: (passageSection: string, heading: string) => void;
   onRemoveSection: (sectionId: string) => void;
+  onReorderSections?: (fromIndex: number, toIndex: number) => void;
 }
 
 export function StudyContentPanel({
@@ -116,6 +118,7 @@ export function StudyContentPanel({
   onUpdateSectionPassage: _onUpdateSectionPassage,
   onAddSection,
   onRemoveSection,
+  onReorderSections,
 }: StudyContentPanelProps) {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(
     new Set(study.study_flow.map((s) => s.id))
@@ -299,174 +302,191 @@ export function StudyContentPanel({
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {study.study_flow.map((section, index) => {
-            const isExpanded = expandedSections.has(section.id);
-            const hasObservations = section.questions.some((q) => q.type === 'observation');
-            const hasInterpretations = section.questions.some((q) => q.type === 'interpretation');
+          {/* Render section content - extracted for reuse */}
+          {(() => {
+            const renderSectionContent = (section: typeof study.study_flow[0], index: number) => {
+              const isExpanded = expandedSections.has(section.id);
+              const hasObservations = section.questions.some((q) => q.type === 'observation');
+              const hasInterpretations = section.questions.some((q) => q.type === 'interpretation');
 
-            return (
-              <motion.div
-                key={section.id}
-                id={`section-${section.id}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                className="
-                  border border-[var(--border-color)]
-                  rounded-lg
-                  overflow-hidden
-                  bg-[var(--bg-surface)]
-                  scroll-mt-4
-                "
-              >
-                {/* Section Header */}
-                <button
-                  onClick={() => toggleSection(section.id)}
+              return (
+                <motion.div
+                  key={section.id}
+                  id={`section-${section.id}`}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                   className="
-                    w-full
-                    flex items-center justify-between
-                    p-4
-                    text-left
-                    hover:bg-[var(--bg-elevated)]
-                    transition-colors
+                    border border-[var(--border-color)]
+                    rounded-lg
+                    overflow-hidden
+                    bg-[var(--bg-surface)]
+                    scroll-mt-4
                   "
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xs font-medium text-[var(--text-muted)]">
-                        {section.passage_section}
-                      </span>
-                      {study.study_flow.length > 1 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('Remove this section?')) {
-                              onRemoveSection(section.id);
-                            }
-                          }}
-                          className="
-                            p-1 rounded
-                            text-[var(--text-muted)]
-                            hover:text-red-500
-                            hover:bg-red-500/10
-                            transition-colors
-                          "
-                          title="Remove section"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-[var(--text-primary)]">
-                      {section.section_heading}
-                    </h3>
-                    <p className="text-xs text-[var(--text-muted)] mt-1">
-                      {section.questions.length} question{section.questions.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  {isExpanded ? (
-                    <ChevronUp className="h-5 w-5 text-[var(--text-muted)]" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-[var(--text-muted)]" />
-                  )}
-                </button>
-
-                {/* Section Content */}
-                {isExpanded && (
-                  <div className="p-4 pt-0 space-y-4 border-t border-[var(--border-color)]">
-                    {/* Questions */}
-                    <SortableQuestionList
-                      questions={section.questions}
-                      sectionId={section.id}
-                      passageContext={passageContext}
-                      onQuestionChange={(questionId, question) =>
-                        onUpdateQuestion(section.id, questionId, { question })
-                      }
-                      onAnswerChange={(questionId, answer) =>
-                        onUpdateQuestion(section.id, questionId, { answer })
-                      }
-                      onTypeChange={(questionId, type) =>
-                        onUpdateQuestion(section.id, questionId, { type })
-                      }
-                      onDelete={(questionId) => onRemoveQuestion(section.id, questionId)}
-                      onReorder={(fromIndex, toIndex) =>
-                        onReorderQuestions(section.id, fromIndex, toIndex)
-                      }
-                    />
-
-                    {/* Magic Draft Buttons */}
-                    <div className="flex gap-2 flex-wrap">
-                      {!hasObservations && (
-                        <button
-                          onClick={() => handleDraftQuestions(section.id, 'observation')}
-                          disabled={generatingSection === section.id}
-                          className="
-                            inline-flex items-center gap-1.5
-                            px-3 py-1.5 text-sm font-medium
-                            text-[var(--color-observation)]
-                            bg-[var(--color-observation)]/10
-                            hover:bg-[var(--color-observation)]/20
-                            border border-[var(--color-observation)]/30
-                            rounded-lg transition-colors
-                            disabled:opacity-50
-                          "
-                        >
-                          {generatingSection === section.id && generationType === 'observation' ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-3.5 w-3.5" />
-                          )}
-                          Draft Observations
-                        </button>
-                      )}
-                      {!hasInterpretations && (
-                        <button
-                          onClick={() => handleDraftQuestions(section.id, 'interpretation')}
-                          disabled={generatingSection === section.id}
-                          className="
-                            inline-flex items-center gap-1.5
-                            px-3 py-1.5 text-sm font-medium
-                            text-[var(--color-interpretation)]
-                            bg-[var(--color-interpretation)]/10
-                            hover:bg-[var(--color-interpretation)]/20
-                            border border-[var(--color-interpretation)]/30
-                            rounded-lg transition-colors
-                            disabled:opacity-50
-                          "
-                        >
-                          {generatingSection === section.id && generationType === 'interpretation' ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-3.5 w-3.5" />
-                          )}
-                          Draft Interpretations
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Add Question Button */}
-                    <AddQuestionButton
-                      onAdd={(type, question, answer) =>
-                        onAddQuestion(section.id, type, question, answer)
-                      }
-                    />
-
-                    {/* Connection */}
-                    {section.connection && onUpdateSectionConnection && (
-                      <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
-                        <EditableTextField
-                          value={section.connection}
-                          onChange={(value) => onUpdateSectionConnection(section.id, value)}
-                          placeholder="Connection to next section..."
-                          multiline={false}
-                        />
+                  {/* Section Header */}
+                  <button
+                    onClick={() => toggleSection(section.id)}
+                    className="
+                      w-full
+                      flex items-center justify-between
+                      p-4
+                      text-left
+                      hover:bg-[var(--bg-elevated)]
+                      transition-colors
+                    "
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-medium text-[var(--text-muted)]">
+                          {section.passage_section}
+                        </span>
+                        {study.study_flow.length > 1 && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm('Remove this section?')) {
+                                onRemoveSection(section.id);
+                              }
+                            }}
+                            className="
+                              p-1 rounded
+                              text-[var(--text-muted)]
+                              hover:text-red-500
+                              hover:bg-red-500/10
+                              transition-colors
+                            "
+                            title="Remove section"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
+                      <h3 className="font-semibold text-[var(--text-primary)]">
+                        {section.section_heading}
+                      </h3>
+                      <p className="text-xs text-[var(--text-muted)] mt-1">
+                        {section.questions.length} question{section.questions.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    {isExpanded ? (
+                      <ChevronUp className="h-5 w-5 text-[var(--text-muted)]" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-[var(--text-muted)]" />
                     )}
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
+                  </button>
+
+                  {/* Section Content */}
+                  {isExpanded && (
+                    <div className="p-4 pt-0 space-y-4 border-t border-[var(--border-color)]">
+                      {/* Questions */}
+                      <SortableQuestionList
+                        questions={section.questions}
+                        sectionId={section.id}
+                        passageContext={passageContext}
+                        onQuestionChange={(questionId, question) =>
+                          onUpdateQuestion(section.id, questionId, { question })
+                        }
+                        onAnswerChange={(questionId, answer) =>
+                          onUpdateQuestion(section.id, questionId, { answer })
+                        }
+                        onTypeChange={(questionId, type) =>
+                          onUpdateQuestion(section.id, questionId, { type })
+                        }
+                        onDelete={(questionId) => onRemoveQuestion(section.id, questionId)}
+                        onReorder={(fromIndex, toIndex) =>
+                          onReorderQuestions(section.id, fromIndex, toIndex)
+                        }
+                      />
+
+                      {/* Magic Draft Buttons */}
+                      <div className="flex gap-2 flex-wrap">
+                        {!hasObservations && (
+                          <button
+                            onClick={() => handleDraftQuestions(section.id, 'observation')}
+                            disabled={generatingSection === section.id}
+                            className="
+                              inline-flex items-center gap-1.5
+                              px-3 py-1.5 text-sm font-medium
+                              text-[var(--color-observation)]
+                              bg-[var(--color-observation)]/10
+                              hover:bg-[var(--color-observation)]/20
+                              border border-[var(--color-observation)]/30
+                              rounded-lg transition-colors
+                              disabled:opacity-50
+                            "
+                          >
+                            {generatingSection === section.id && generationType === 'observation' ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3.5 w-3.5" />
+                            )}
+                            Draft Observations
+                          </button>
+                        )}
+                        {!hasInterpretations && (
+                          <button
+                            onClick={() => handleDraftQuestions(section.id, 'interpretation')}
+                            disabled={generatingSection === section.id}
+                            className="
+                              inline-flex items-center gap-1.5
+                              px-3 py-1.5 text-sm font-medium
+                              text-[var(--color-interpretation)]
+                              bg-[var(--color-interpretation)]/10
+                              hover:bg-[var(--color-interpretation)]/20
+                              border border-[var(--color-interpretation)]/30
+                              rounded-lg transition-colors
+                              disabled:opacity-50
+                            "
+                          >
+                            {generatingSection === section.id && generationType === 'interpretation' ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3.5 w-3.5" />
+                            )}
+                            Draft Interpretations
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Add Question Button */}
+                      <AddQuestionButton
+                        onAdd={(type, question, answer) =>
+                          onAddQuestion(section.id, type, question, answer)
+                        }
+                      />
+
+                      {/* Connection */}
+                      {section.connection && onUpdateSectionConnection && (
+                        <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+                          <EditableTextField
+                            value={section.connection}
+                            onChange={(value) => onUpdateSectionConnection(section.id, value)}
+                            placeholder="Connection to next section..."
+                            multiline={false}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              );
+            };
+
+            // If reorder handler is provided, use sortable list
+            if (onReorderSections) {
+              return (
+                <SortableSectionList
+                  sections={study.study_flow}
+                  onReorder={onReorderSections}
+                  renderSection={renderSectionContent}
+                />
+              );
+            }
+
+            // Otherwise, render sections without drag-drop
+            return study.study_flow.map(renderSectionContent);
+          })()}
 
           {/* Add Section Button */}
           {showAddSection ? (

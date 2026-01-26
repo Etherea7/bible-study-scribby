@@ -10,6 +10,25 @@ import { getApiKeys } from '../hooks/useApiKeys';
 import type { EditableStudyFlowSection, EditableQuestionType } from '../types';
 
 /**
+ * Strip HTML tags from text content.
+ * Converts lists to dashes for readability.
+ */
+function stripHtmlTags(html: string): string {
+  if (!html) return '';
+
+  // Create a temporary element to parse HTML
+  const doc = new DOMParser().parseFromString(html, 'text/html');
+
+  // Convert list items to dashes for readability
+  doc.querySelectorAll('li').forEach((li) => {
+    li.textContent = '- ' + li.textContent;
+  });
+
+  // Get text content and clean up whitespace
+  return doc.body.textContent?.replace(/\s+/g, ' ').trim() || '';
+}
+
+/**
  * Check if AI enhance is available (user has OpenRouter API key configured)
  */
 export async function isEnhanceAvailable(): Promise<boolean> {
@@ -291,8 +310,11 @@ export async function validateUserNotes(
     throw new LLMError('OpenRouter API key not configured', 'openrouter');
   }
 
+  // Strip HTML tags from notes (in case of rich text)
+  const plainNotes = stripHtmlTags(userNotes);
+
   // Skip validation for very short notes
-  if (userNotes.trim().length < 20) {
+  if (plainNotes.trim().length < 20) {
     return {
       isRelevant: false,
       score: 0,
@@ -308,7 +330,7 @@ ${passageText}
 SECTION: ${sectionHeading}
 
 USER'S NOTES:
-${userNotes}
+${plainNotes}
 
 Evaluate:
 1. Do the notes relate to themes, concepts, or content in the passage?
@@ -371,9 +393,12 @@ export async function draftObservationQuestions(
     throw new LLMError('OpenRouter API key not configured', 'openrouter');
   }
 
-  const userNotesSection = userNotes?.trim()
+  // Strip HTML tags from notes (in case of rich text)
+  const plainNotes = userNotes ? stripHtmlTags(userNotes) : '';
+
+  const userNotesSection = plainNotes.trim()
     ? `\nUSER'S STUDY NOTES (use these to guide your questions where relevant):
-${userNotes}
+${plainNotes}
 
 When generating questions, incorporate insights from the user's notes where they align with the passage. Focus on what the user found interesting or important.
 `
@@ -429,9 +454,12 @@ export async function draftInterpretationQuestions(
     throw new LLMError('OpenRouter API key not configured', 'openrouter');
   }
 
-  const userNotesSection = userNotes?.trim()
+  // Strip HTML tags from notes (in case of rich text)
+  const plainNotes = userNotes ? stripHtmlTags(userNotes) : '';
+
+  const userNotesSection = plainNotes.trim()
     ? `\nUSER'S STUDY NOTES (use these to guide your questions where relevant):
-${userNotes}
+${plainNotes}
 
 When generating questions, incorporate insights from the user's notes where they align with the passage. Focus on theological themes and interpretations the user highlighted.
 `
@@ -667,10 +695,13 @@ export async function generateStudyFlow(
     throw new LLMError('OpenRouter API key not configured', 'openrouter');
   }
 
-  const userNotesSection = userNotes?.trim()
+  // Strip HTML tags from notes (in case of rich text)
+  const plainNotes = userNotes ? stripHtmlTags(userNotes) : '';
+
+  const userNotesSection = plainNotes.trim()
     ? `
 USER'S STUDY NOTES (use these to guide the outline where relevant):
-${userNotes}
+${plainNotes}
 
 When generating the outline, incorporate insights from the user's notes. Focus on themes and sections that align with what the user found interesting or important.
 `

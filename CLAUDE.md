@@ -73,6 +73,8 @@ cd frontend && npm run dev
 - Tailwind CSS for styling
 - Framer Motion for animations
 - Zod for JSON validation
+- @dnd-kit for drag-and-drop (questions and sections)
+- TipTap for rich text editing (notes)
 
 **Directory Structure**
 ```
@@ -89,18 +91,19 @@ frontend/src/
 │   │   ├── StudyContentPanel.tsx  # Document-style editor
 │   │   └── MagicDraftButton.tsx   # AI draft button
 │   ├── forms/               # PassageSelector, BookSearchCombobox, PassagePreview
-│   ├── layout/              # Header
+│   ├── layout/              # Header, ScrollLayout (parchment scroll animation)
 │   ├── settings/            # ApiKeySettings modal with model selection
-│   ├── study/               # Study display components
-│   ├── ui/                  # Button, Card, FloatingToolbar, etc.
+│   ├── study/               # Study display components, SortableQuestionList, SortableSectionList
+│   ├── ui/                  # Button, Card, FloatingToolbar, RichTextEditor, etc.
 │   └── wizard/              # CreateStudyWizard (NEW)
 ├── db/
 │   └── index.ts             # Dexie database (v3 schema)
 ├── hooks/
 │   ├── useApiKeys.ts        # API key + model selection storage
 │   ├── useStudyGeneration.ts # Uses UnifiedAIService
-│   ├── useEditableStudy.ts  # Full CRUD for editable study state
+│   ├── useEditableStudy.ts  # Full CRUD for editable study state (includes reorderSections)
 │   ├── useSavedStudies.ts   # Saved studies CRUD
+│   ├── useScrollAnimation.ts # Scroll velocity tracking for handle rotation
 │   └── ...
 ├── pages/
 │   ├── LandingPage.tsx      # NEW entry point at "/"
@@ -164,6 +167,52 @@ frontend/src/
 - Provider selection: OpenRouter, Anthropic, Google, Auto
 - Model selection dropdown per provider
 - Migration support for old settings format
+
+### Scroll Animation System
+
+**ScrollLayout.tsx** - Parchment scroll container with animated handles
+- Unrolling animation on page load (top/bottom handles separate from center)
+- Bottom handle rotates based on scroll velocity (tilts forward when scrolling down)
+- Visual ridges on bottom handle make rotation visible
+- Uses `perspective: 500px` and `transformStyle: 'preserve-3d'` for 3D effect
+- Parchment surface with subtle ruled lines and edge darkening
+- Dark mode support with slate color palette
+
+**useScrollAnimation.ts** - Custom hook for scroll-reactive rotation
+- Tracks scroll velocity using `requestAnimationFrame`
+- Returns `handleRotation` value (±25° max)
+- Configurable: `maxRotation`, `velocityDecay`, `sensitivity`
+- Respects `prefers-reduced-motion` accessibility setting
+- Smooth decay animation when scrolling stops
+
+### Drag-and-Drop System
+
+**SortableQuestionList.tsx** - Reorderable questions within a section
+- Uses `@dnd-kit/core` and `@dnd-kit/sortable`
+- Drag handle appears on hover
+- Calls `onReorder(fromIndex, toIndex)` on drop
+
+**SortableSectionList.tsx** - Reorderable study sections
+- Wraps sections in `DndContext` + `SortableContext`
+- Uses `renderSection` prop for flexible section rendering
+- Calls `onReorder(fromIndex, toIndex)` on drop
+
+**SortableSectionWrapper.tsx** - Wrapper component for sortable sections
+- Uses `useSortable()` hook
+- Drag handle (GripVertical icon) appears on left side on hover
+- Applies CSS transforms during drag
+
+### Rich Text Editor
+
+**RichTextEditor.tsx** - TipTap-based rich text editor
+- Toolbar: Bold, Italic, Underline, Bullet List, Numbered List, Horizontal Rule
+- Keyboard shortcuts: Ctrl+B/I/U
+- Stores content as HTML string
+- Used for "Your Notes & Outline" section in FlowPanel
+
+**stripHtmlTags()** - Utility function in `enhanceClient.ts`
+- Converts rich text HTML to plain text before sending to AI
+- Converts list items to dashes for readability
 
 ### Provider & Model System
 
@@ -316,6 +365,30 @@ interface GenerateStudyRequest {
 1. Desktop: Side-by-side split view
 2. Tablet: Narrower panels
 3. Mobile: Stacked layout (passage first)
+
+### Scroll Animation
+1. Page loads with scroll unrolling animation (handles separate from center)
+2. Bottom handle has visible horizontal ridges
+3. Scroll down rapidly - bottom handle tilts forward visibly
+4. Scroll up - handle tilts backward
+5. Stop scrolling - handle smoothly returns to neutral
+6. Dark mode maintains proper colors
+
+### Section Drag-and-Drop
+1. Load study with multiple sections
+2. Hover over section - drag handle (grip icon) appears on left
+3. Drag section up/down - sections shift visually during drag
+4. Drop section - new order persists
+5. Save and reload - order is preserved
+6. Questions within sections still reorderable independently
+
+### Rich Text Notes
+1. Notes section shows formatting toolbar (B, I, U, lists, line)
+2. Select text, click Bold - text becomes bold
+3. Ctrl+B/I/U keyboard shortcuts work
+4. Create bullet list, add items with Enter
+5. Save study - formatting persists on reload
+6. Generate with notes - AI receives plain text version (HTML stripped)
 
 ## Files Reference
 

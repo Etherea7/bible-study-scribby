@@ -138,6 +138,7 @@ interface UseEditableStudyResult {
   updateSectionPassage: (sectionId: string, passage: string) => void;
   addSection: (passageSection: string, heading: string) => void;
   removeSection: (sectionId: string) => void;
+  reorderSections: (fromIndex: number, toIndex: number) => void;
 
   // Study-level notes
   updateStudyNotes: (notes: string) => void;
@@ -507,6 +508,16 @@ export function useEditableStudy(
     });
   }, []);
 
+  const reorderSections = useCallback((fromIndex: number, toIndex: number) => {
+    setStudy((prev) => {
+      if (!prev) return null;
+      const sections = [...prev.study_flow];
+      const [removed] = sections.splice(fromIndex, 1);
+      sections.splice(toIndex, 0, removed);
+      return { ...prev, study_flow: sections, isEdited: true, lastModified: new Date() };
+    });
+  }, []);
+
   // Set a blank study directly (for manual study creation)
   const setBlankStudy = useCallback((blankStudy: EditableStudyFull) => {
     setStudy(blankStudy);
@@ -590,6 +601,7 @@ export function useEditableStudy(
     updateSectionPassage,
     addSection,
     removeSection,
+    reorderSections,
     updateStudyNotes,
     saveToHistory,
     discardChanges,

@@ -726,3 +726,61 @@ body {
 .dark .parchment-surface {
   background-color: #1E293B; /* Dark mode - slate-800 */
 }
+
+/* ============================================================================
+   TIPTAP RICH TEXT EDITOR STYLES
+   ============================================================================ */
+
+.rich-text-editor-content {
+  min-height: 100px;
+  line-height: 1.6;
+}
+
+.rich-text-editor-content:focus {
+  outline: none;
+}
+
+.rich-text-editor-content p {
+  margin: 0.25em 0;
+}
+
+.rich-text-editor-content ul,
+.rich-text-editor-content ol {
+  padding-left: 1.5em;
+  margin: 0.5em 0;
+}
+
+.rich-text-editor-content li {
+  margin: 0.25em 0;
+}
+
+.rich-text-editor-content li p {
+  margin: 0;
+}
+
+.rich-text-editor-content hr {
+  border: none;
+  border-top: 1px solid var(--border-color);
+  margin: 1em 0;
+}
+
+.rich-text-editor-content strong {
+  font-weight: 600;
+}
+
+.rich-text-editor-content em {
+  font-style: italic;
+}
+
+.rich-text-editor-content u {
+  text-decoration: underline;
+}
+
+/* Placeholder styling */
+.rich-text-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 0;
+}
