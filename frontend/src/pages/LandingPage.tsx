@@ -16,7 +16,6 @@ import {
   buttonHover,
   buttonTap,
 } from '../utils/animations';
-import { ScrollContainer } from '../components/layout/ScrollContainer';
 
 export function LandingPage() {
   const navigate = useNavigate();
@@ -43,8 +42,7 @@ export function LandingPage() {
   // Using optimized animations from animations.ts
 
   return (
-    <ScrollContainer>
-      <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto">
           {/* Hero Section */}
           <motion.div
             initial="initial"
@@ -274,9 +272,8 @@ export function LandingPage() {
             )}
           </motion.div>
 
-          {/* Creation Wizard Modal */}
-          {showWizard && <CreateStudyWizard onClose={() => setShowWizard(false)} />}
-        </div>
-    </ScrollContainer>
+        {/* Creation Wizard Modal */}
+        {showWizard && <CreateStudyWizard onClose={() => setShowWizard(false)} />}
+      </div>
   );
 }
