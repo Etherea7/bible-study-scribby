@@ -69,3 +69,26 @@ class GeminiProvider(LLMProvider):
             return create_error_study(f"Failed to parse Gemini response: {str(e)}")
         except Exception as e:
             return self._handle_error(e)
+
+    async def complete_prompt(self, prompt: str, model_override: str = None) -> str:
+        """Generic text completion using Gemini."""
+        if not self.is_available():
+            raise RuntimeError("Google API key not configured")
+
+        effective_model = model_override or self.model
+
+        try:
+            client = self._get_client()
+
+            response = client.models.generate_content(
+                model=effective_model,
+                contents=prompt
+            )
+
+            response_text = response.text
+            logger.info(f"Gemini completed prompt (model: {effective_model})")
+            return response_text.strip()
+
+        except Exception as e:
+            logger.error(f"Gemini completion error: {e}")
+            raise RuntimeError(f"Gemini error: {str(e)}")

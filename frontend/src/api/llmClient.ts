@@ -11,7 +11,7 @@ import type { Study } from '../types';
 
 // OpenRouter configuration
 const OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const OPENROUTER_MODEL = 'meta-llama/llama-3.2-3b-instruct:free';
+const DEFAULT_OPENROUTER_MODEL = 'meta-llama/llama-3.2-3b-instruct:free';
 
 // ESV API configuration
 const ESV_API_URL = 'https://api.esv.org/v3/passage/text/';
@@ -38,14 +38,17 @@ export class LLMError extends Error {
  * @param prompt - The full prompt to send to the LLM
  * @param apiKey - The user's OpenRouter API key
  * @param rawText - If true, return raw text instead of parsing as JSON
+ * @param model - Optional model to use (defaults to free Llama model)
  * @returns Parsed Study object or raw text from the LLM response
  */
 export async function callOpenRouter(
   prompt: string,
   apiKey: string,
-  rawText: boolean = false
+  rawText: boolean = false,
+  model?: string
 ): Promise<Study | string> {
-  console.log('[Dev] Calling OpenRouter directly from browser');
+  const effectiveModel = model || DEFAULT_OPENROUTER_MODEL;
+  console.log(`[Dev] Calling OpenRouter directly from browser (model: ${effectiveModel})`);
 
   const systemContent = rawText
     ? 'You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown.'
@@ -60,7 +63,7 @@ export async function callOpenRouter(
       'X-Title': 'Bible Study Scribby',
     },
     body: JSON.stringify({
-      model: OPENROUTER_MODEL,
+      model: effectiveModel,
       messages: [
         {
           role: 'system',

@@ -1,13 +1,123 @@
 /**
- * AI Enhance Client - Client-side AI enhancement using OpenRouter
+ * AI Enhance Client - AI enhancement using multiple providers
  *
  * Provides functions to enhance individual questions or regenerate sections.
- * Requires user to have configured their OpenRouter API key.
+ * Routes to the user's preferred provider:
+ * - OpenRouter: Direct client-side calls (CORS enabled)
+ * - Anthropic/Google: Via backend /api/enhance endpoint
  */
 
-import { callOpenRouter, LLMError } from './llmClient';
-import { getApiKeys } from '../hooks/useApiKeys';
+import { callOpenRouter } from './llmClient';
+import { getApiKeys, getEffectiveProviderAndModel } from '../hooks/useApiKeys';
 import type { EditableStudyFlowSection, EditableQuestionType } from '../types';
+
+// Backend API URL for non-CORS providers
+const ENHANCE_API_URL = '/api/enhance';
+
+/**
+ * Error class for enhancement API errors
+ */
+export class EnhanceError extends Error {
+  readonly provider: string;
+  readonly statusCode?: number;
+
+  constructor(message: string, provider: string, statusCode?: number) {
+    super(message);
+    this.name = 'EnhanceError';
+    this.provider = provider;
+    this.statusCode = statusCode;
+  }
+}
+
+/**
+ * Call backend /api/enhance endpoint for non-CORS providers (Anthropic/Google)
+ */
+async function apiEnhance(
+  prompt: string,
+  provider: string,
+  model: string
+): Promise<string> {
+  console.log(`[Dev] Calling backend /api/enhance (provider: ${provider}, model: ${model})`);
+
+  const response = await fetch(ENHANCE_API_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt, provider, model }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new EnhanceError(
+      errorData.error || `Enhancement failed: ${response.status}`,
+      provider,
+      response.status
+    );
+  }
+
+  const data = await response.json();
+  return data.result;
+}
+
+/**
+ * Unified enhancement function that routes to the appropriate provider.
+ * - OpenRouter: Direct client-side API call (CORS enabled)
+ * - Anthropic/Google: Backend /api/enhance endpoint
+ *
+ * @param prompt - The full prompt to send
+ * @param rawText - If true, expect plain text response (default: true)
+ * @returns The LLM response text
+ */
+async function enhanceWithProvider(
+  prompt: string,
+  rawText: boolean = true
+): Promise<string> {
+  const { provider, model, apiKey } = await getEffectiveProviderAndModel();
+
+  // Check if we can use client-side OpenRouter
+  if (provider === 'openrouter' && apiKey) {
+    console.log(`[Dev] Using client-side OpenRouter for enhancement (model: ${model})`);
+    const response = await callOpenRouter(prompt, apiKey, rawText, model || undefined);
+    return typeof response === 'string' ? response : JSON.stringify(response);
+  }
+
+  // Check if we have a valid provider for backend
+  if (!provider) {
+    throw new EnhanceError(
+      'No AI provider configured. Please add an API key in Settings.',
+      'none'
+    );
+  }
+
+  // Route to backend for non-OpenRouter providers (Anthropic/Google)
+  console.log(`[Dev] Using backend for enhancement (provider: ${provider}, model: ${model})`);
+  return await apiEnhance(prompt, provider, model || '');
+}
+
+/**
+ * Enhanced version that expects JSON response and parses it.
+ */
+async function enhanceWithProviderJson<T>(prompt: string): Promise<T> {
+  const response = await enhanceWithProvider(prompt, false);
+
+  // Try to parse as JSON
+  try {
+    // Handle potential markdown code block wrapping
+    let jsonString = response.trim();
+    if (jsonString.startsWith('```json')) {
+      jsonString = jsonString.slice(7);
+    } else if (jsonString.startsWith('```')) {
+      jsonString = jsonString.slice(3);
+    }
+    if (jsonString.endsWith('```')) {
+      jsonString = jsonString.slice(0, -3);
+    }
+
+    return JSON.parse(jsonString.trim()) as T;
+  } catch {
+    console.error('[Dev] Failed to parse enhancement response as JSON:', response);
+    throw new EnhanceError('Failed to parse AI response', 'parse');
+  }
+}
 
 /**
  * Strip HTML tags from text content.
@@ -29,11 +139,13 @@ function stripHtmlTags(html: string): string {
 }
 
 /**
- * Check if AI enhance is available (user has OpenRouter API key configured)
+ * Check if AI enhance is available (user has any AI provider configured)
  */
 export async function isEnhanceAvailable(): Promise<boolean> {
   const keys = await getApiKeys();
-  return Boolean(keys.openrouterApiKey);
+  return Boolean(
+    keys.openrouterApiKey || keys.anthropicApiKey || keys.googleApiKey
+  );
 }
 
 /**
@@ -51,12 +163,6 @@ export async function enhanceQuestion(
   questionType: EditableQuestionType,
   passageContext: string
 ): Promise<{ question: string; answer?: string }> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const typeGuidance = getTypeGuidance(questionType);
 
   const prompt = `You are an expert Bible study curriculum designer. Your task is to improve a Bible study question.
@@ -82,12 +188,11 @@ Return ONLY valid JSON in this exact format:
   ${answer || questionType === 'observation' || questionType === 'interpretation' ? '"answer": "Your improved answer here"' : '"answer": null'}
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey);
+  const response = await enhanceWithProviderJson<{ question: string; answer?: string }>(prompt);
 
-  // The response should have question and answer fields
   return {
-    question: (response as unknown as { question: string }).question || question,
-    answer: (response as unknown as { answer?: string }).answer || answer,
+    question: response.question || question,
+    answer: response.answer || answer,
   };
 }
 
@@ -102,12 +207,6 @@ export async function regenerateSection(
   section: EditableStudyFlowSection,
   passageText: string
 ): Promise<EditableStudyFlowSection> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum designer. Your task is to regenerate questions for a Bible study section.
 
 PASSAGE SECTION: ${section.passage_section}
@@ -140,11 +239,11 @@ Return ONLY valid JSON in this exact format:
   "connection": "Optional connection to next section or further study"
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+  const response = await enhanceWithProviderJson<{
     section_heading?: string;
     questions?: Array<{ type: string; question: string; answer?: string }>;
     connection?: string;
-  };
+  }>(prompt);
 
   // Map response to EditableStudyFlowSection format
   return {
@@ -171,12 +270,6 @@ export async function rephraseText(
   text: string,
   context?: string
 ): Promise<string> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum writer. Rephrase the following text to be clearer, more engaging, and theologically precise while maintaining the same meaning.
 
 ${context ? `CONTEXT:\n${context}\n\n` : ''}TEXT TO REPHRASE:
@@ -184,8 +277,8 @@ ${text}
 
 Return ONLY the rephrased text, no quotes or explanation.`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
-  return typeof response === 'string' ? response.trim() : text;
+  const response = await enhanceWithProvider(prompt, true);
+  return response.trim() || text;
 }
 
 /**
@@ -199,12 +292,6 @@ export async function shortenText(
   text: string,
   context?: string
 ): Promise<string> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum writer. Shorten the following text to be more concise while preserving the essential meaning and theological accuracy.
 
 ${context ? `CONTEXT:\n${context}\n\n` : ''}TEXT TO SHORTEN:
@@ -212,8 +299,8 @@ ${text}
 
 Return ONLY the shortened text, no quotes or explanation. Aim for roughly 50-70% of the original length.`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
-  return typeof response === 'string' ? response.trim() : text;
+  const response = await enhanceWithProvider(prompt, true);
+  return response.trim() || text;
 }
 
 /**
@@ -227,12 +314,6 @@ export async function draftPurposeStatement(
   reference: string,
   passageText: string
 ): Promise<string> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum designer with a Reformed theological perspective.
 
 Generate a concise purpose statement for a study of ${reference}.
@@ -248,8 +329,8 @@ The purpose statement should:
 
 Return ONLY the purpose statement text, no quotes or explanation.`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
-  return typeof response === 'string' ? response.trim() : '';
+  const response = await enhanceWithProvider(prompt, true);
+  return response.trim();
 }
 
 /**
@@ -263,12 +344,6 @@ export async function draftHistoricalContext(
   reference: string,
   passageText: string
 ): Promise<string> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum designer with a Reformed theological perspective.
 
 Generate historical and literary context for a study of ${reference}.
@@ -286,8 +361,8 @@ Keep it to 2-4 sentences. Be accurate and helpful without overwhelming detail.
 
 Return ONLY the context text, no quotes or explanation.`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
-  return typeof response === 'string' ? response.trim() : '';
+  const response = await enhanceWithProvider(prompt, true);
+  return response.trim();
 }
 
 /**
@@ -304,12 +379,6 @@ export async function validateUserNotes(
   passageText: string,
   sectionHeading: string
 ): Promise<{ isRelevant: boolean; score: number; feedback: string }> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   // Strip HTML tags from notes (in case of rich text)
   const plainNotes = stripHtmlTags(userNotes);
 
@@ -350,11 +419,11 @@ Score guide:
 - 61-100: Clearly relevant and useful for guiding study`;
 
   try {
-    const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+    const response = await enhanceWithProviderJson<{
       isRelevant?: boolean;
       score?: number;
       feedback?: string;
-    };
+    }>(prompt);
 
     return {
       isRelevant: response.isRelevant ?? false,
@@ -387,12 +456,6 @@ export async function draftObservationQuestions(
   count: number = 2,
   userNotes?: string
 ): Promise<Array<{ question: string; answer: string }>> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   // Strip HTML tags from notes (in case of rich text)
   const plainNotes = userNotes ? stripHtmlTags(userNotes) : '';
 
@@ -426,9 +489,9 @@ Return ONLY valid JSON in this exact format:
   ]
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+  const response = await enhanceWithProviderJson<{
     questions?: Array<{ question: string; answer: string }>;
-  };
+  }>(prompt);
 
   return response.questions || [];
 }
@@ -448,12 +511,6 @@ export async function draftInterpretationQuestions(
   count: number = 2,
   userNotes?: string
 ): Promise<Array<{ question: string; answer: string }>> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   // Strip HTML tags from notes (in case of rich text)
   const plainNotes = userNotes ? stripHtmlTags(userNotes) : '';
 
@@ -488,9 +545,9 @@ Return ONLY valid JSON in this exact format:
   ]
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+  const response = await enhanceWithProviderJson<{
     questions?: Array<{ question: string; answer: string }>;
-  };
+  }>(prompt);
 
   return response.questions || [];
 }
@@ -506,12 +563,6 @@ export async function draftApplicationQuestions(
   passageText: string,
   count: number = 3
 ): Promise<Array<{ question: string }>> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum designer with a Reformed theological perspective.
 
 Generate ${count} application questions for this Bible passage.
@@ -535,9 +586,9 @@ Return ONLY valid JSON in this exact format:
   ]
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+  const response = await enhanceWithProviderJson<{
     questions?: Array<{ question: string }>;
-  };
+  }>(prompt);
 
   return response.questions || [];
 }
@@ -553,12 +604,6 @@ export async function explainPassage(
   selectedText: string,
   fullPassageContext: string
 ): Promise<string> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible teacher with a Reformed theological perspective.
 
 Explain the following selected text from Scripture in a helpful, accessible way.
@@ -578,8 +623,8 @@ Your explanation should:
 
 Return ONLY the explanation text, no quotes or headers.`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey, true);
-  return typeof response === 'string' ? response.trim() : '';
+  const response = await enhanceWithProvider(prompt, true);
+  return response.trim();
 }
 
 /**
@@ -593,12 +638,6 @@ export async function findCrossReferences(
   selectedText: string,
   reference: string
 ): Promise<Array<{ reference: string; note: string }>> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum designer with a Reformed theological perspective.
 
 Find 3-5 cross-references for this selected Bible text.
@@ -620,9 +659,9 @@ Return ONLY valid JSON in this exact format:
   ]
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+  const response = await enhanceWithProviderJson<{
     references?: Array<{ reference: string; note: string }>;
-  };
+  }>(prompt);
 
   return response.references || [];
 }
@@ -638,12 +677,6 @@ export async function draftKeyThemes(
   reference: string,
   passageText: string
 ): Promise<string[]> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   const prompt = `You are an expert Bible study curriculum designer with a Reformed theological perspective.
 
 Identify 3-5 key themes in ${reference}.
@@ -661,9 +694,9 @@ Return ONLY valid JSON in this exact format:
   "themes": ["Theme 1", "Theme 2", "Theme 3"]
 }`;
 
-  const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+  const response = await enhanceWithProviderJson<{
     themes?: string[];
-  };
+  }>(prompt);
 
   return response.themes || [];
 }
@@ -689,12 +722,6 @@ export async function generateStudyFlow(
     heading: string;
   }>;
 }> {
-  const keys = await getApiKeys();
-
-  if (!keys.openrouterApiKey) {
-    throw new LLMError('OpenRouter API key not configured', 'openrouter');
-  }
-
   // Strip HTML tags from notes (in case of rich text)
   const plainNotes = userNotes ? stripHtmlTags(userNotes) : '';
 
@@ -732,12 +759,12 @@ Return ONLY valid JSON in this exact format:
 }`;
 
   try {
-    const response = await callOpenRouter(prompt, keys.openrouterApiKey) as unknown as {
+    const response = await enhanceWithProviderJson<{
       purpose?: string;
       context?: string;
       themes?: string[];
       sections?: Array<{ passageSection: string; heading: string }>;
-    };
+    }>(prompt);
 
     return {
       purpose: response.purpose || '',
@@ -749,15 +776,15 @@ Return ONLY valid JSON in this exact format:
     // Handle rate limit errors with user-friendly message
     if (error instanceof Error) {
       if (error.message.includes('429') || error.message.toLowerCase().includes('rate limit')) {
-        throw new LLMError(
+        throw new EnhanceError(
           'Rate limit exceeded. Please wait a moment and try again, or try a different model in Settings.',
-          'openrouter'
+          'ratelimit'
         );
       }
       if (error.message.includes('402') || error.message.toLowerCase().includes('payment')) {
-        throw new LLMError(
-          'API credit limit reached. Please check your OpenRouter account or switch to a free model.',
-          'openrouter'
+        throw new EnhanceError(
+          'API credit limit reached. Please check your account or switch to a free model.',
+          'payment'
         );
       }
     }

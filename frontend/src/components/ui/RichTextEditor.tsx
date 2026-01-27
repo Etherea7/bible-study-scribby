@@ -19,7 +19,7 @@ import {
   ListOrdered,
   Minus,
 } from 'lucide-react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 
 interface RichTextEditorProps {
   value: string;
@@ -34,8 +34,9 @@ export function RichTextEditor({
   placeholder = 'Write your notes...',
   minHeight = '100px',
 }: RichTextEditorProps) {
-  const editor = useEditor({
-    extensions: [
+  // Memoize extensions to prevent duplicate registration on re-renders
+  const extensions = useMemo(
+    () => [
       StarterKit.configure({
         bulletList: {
           keepMarks: true,
@@ -48,6 +49,11 @@ export function RichTextEditor({
       }),
       Underline,
     ],
+    []
+  );
+
+  const editor = useEditor({
+    extensions,
     content: value,
     editorProps: {
       attributes: {

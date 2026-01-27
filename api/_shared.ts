@@ -22,12 +22,18 @@ export const PROVIDERS = {
         model: 'gemini-2.0-flash',
         envKey: 'GOOGLE_API_KEY',
     },
+    claude: {
+        name: 'claude',
+        url: 'https://api.anthropic.com/v1/messages',
+        model: 'claude-sonnet-4-20250514',
+        envKey: 'ANTHROPIC_API_KEY',
+    },
 } as const;
 
 export type ProviderName = keyof typeof PROVIDERS;
 
-// Default fallback order
-export const PROVIDER_ORDER: ProviderName[] = ['groq', 'openrouter', 'gemini'];
+// Default fallback order (Claude last as it's typically the most expensive)
+export const PROVIDER_ORDER: ProviderName[] = ['groq', 'openrouter', 'gemini', 'claude'];
 
 /**
  * Get available providers based on configured environment variables
@@ -307,6 +313,270 @@ export async function callGemini(prompt: string): Promise<string> {
 }
 
 /**
+ * Call Claude API (JSON mode)
+ */
+export async function callClaude(prompt: string): Promise<string> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('Anthropic API key not configured');
+
+    const response = await fetch(PROVIDERS.claude.url, {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'Content-Type': 'application/json',
+            'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+            model: PROVIDERS.claude.model,
+            max_tokens: 3000,
+            messages: [
+                {
+                    role: 'user',
+                    content: `You are an expert Bible study curriculum designer. Always respond with valid JSON only.\n\n${prompt}`,
+                },
+            ],
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Claude API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.content[0].text;
+}
+
+// Provider mapping from frontend names to backend names
+export const PROVIDER_MAPPING: Record<string, ProviderName | 'claude'> = {
+    openrouter: 'openrouter',
+    anthropic: 'claude',
+    google: 'gemini',
+    claude: 'claude',
+    gemini: 'gemini',
+    groq: 'groq',
+};
+
+/**
+ * Call Groq API for text completion (no JSON mode)
+ */
+export async function callGroqText(prompt: string, model?: string): Promise<string> {
+    const apiKey = process.env.GROQ_API_KEY;
+    if (!apiKey) throw new Error('Groq API key not configured');
+
+    const response = await fetch(PROVIDERS.groq.url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: model || PROVIDERS.groq.model,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown formatting unless specifically requested.',
+                },
+                { role: 'user', content: prompt },
+            ],
+            temperature: 0.6,
+            max_tokens: 2000,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Groq API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+/**
+ * Call OpenRouter API for text completion (no JSON mode)
+ */
+export async function callOpenRouterText(prompt: string, model?: string): Promise<string> {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error('OpenRouter API key not configured');
+
+    const response = await fetch(PROVIDERS.openrouter.url, {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://bible-study-scribby.vercel.app',
+            'X-Title': 'Bible Study Scribby',
+        },
+        body: JSON.stringify({
+            model: model || PROVIDERS.openrouter.model,
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown formatting unless specifically requested.',
+                },
+                { role: 'user', content: prompt },
+            ],
+            temperature: 0.6,
+            max_tokens: 2000,
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`OpenRouter API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+/**
+ * Call Gemini API for text completion (no JSON mode)
+ */
+export async function callGeminiText(prompt: string, model?: string): Promise<string> {
+    const apiKey = process.env.GOOGLE_API_KEY;
+    if (!apiKey) throw new Error('Gemini API key not configured');
+
+    // Build URL with model
+    const effectiveModel = model || PROVIDERS.gemini.model;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${effectiveModel}:generateContent?key=${apiKey}`;
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            contents: [
+                {
+                    parts: [
+                        {
+                            text: `You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown formatting unless specifically requested.\n\n${prompt}`,
+                        },
+                    ],
+                },
+            ],
+            generationConfig: {
+                temperature: 0.6,
+                maxOutputTokens: 2000,
+            },
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Gemini API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.candidates[0].content.parts[0].text;
+}
+
+/**
+ * Call Claude API for text completion
+ */
+export async function callClaudeText(prompt: string, model?: string): Promise<string> {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) throw new Error('Anthropic API key not configured');
+
+    const effectiveModel = model || 'claude-sonnet-4-20250514';
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': apiKey,
+            'Content-Type': 'application/json',
+            'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+            model: effectiveModel,
+            max_tokens: 2000,
+            messages: [
+                {
+                    role: 'user',
+                    content: prompt,
+                },
+            ],
+        }),
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(`Claude API error: ${response.status} - ${error}`);
+    }
+
+    const data = await response.json();
+    return data.content[0].text;
+}
+
+/**
+ * Complete a prompt with automatic fallback through providers
+ * Used for enhancement operations (rephrase, draft, explain, etc.)
+ */
+export async function completePromptWithFallback(
+    prompt: string,
+    requestedProvider?: string,
+    requestedModel?: string
+): Promise<{ result: string; provider: string }> {
+    // Map frontend provider names to backend names
+    const effectiveProvider = requestedProvider
+        ? PROVIDER_MAPPING[requestedProvider.toLowerCase()]
+        : undefined;
+
+    // Text completion callers
+    const textCallers: Record<string, (prompt: string, model?: string) => Promise<string>> = {
+        groq: callGroqText,
+        openrouter: callOpenRouterText,
+        gemini: callGeminiText,
+        claude: callClaudeText,
+    };
+
+    // If a specific provider is requested, try only that one
+    if (effectiveProvider && textCallers[effectiveProvider]) {
+        const apiKeyEnv = effectiveProvider === 'claude' ? 'ANTHROPIC_API_KEY' :
+            effectiveProvider === 'gemini' ? 'GOOGLE_API_KEY' :
+            effectiveProvider === 'openrouter' ? 'OPENROUTER_API_KEY' :
+            'GROQ_API_KEY';
+
+        if (!process.env[apiKeyEnv]) {
+            throw new Error(`${effectiveProvider} API key not configured on server`);
+        }
+
+        console.log(`[API] Using requested provider: ${effectiveProvider}`);
+        const result = await textCallers[effectiveProvider](prompt, requestedModel);
+        return { result: result.trim(), provider: effectiveProvider };
+    }
+
+    // Auto mode: try providers in fallback order
+    const availableProviders = getAvailableProviders();
+
+    if (availableProviders.length === 0) {
+        throw new Error(
+            'No LLM providers configured. Please add at least one API key to environment variables.'
+        );
+    }
+
+    // Try available providers in order
+    for (const providerName of availableProviders) {
+        try {
+            console.log(`[API] Trying provider for text completion: ${providerName}`);
+            const caller = textCallers[providerName];
+            if (!caller) continue;
+
+            const result = await caller(prompt, requestedModel);
+            console.log(`[API] Successfully completed prompt using ${providerName}`);
+            return { result: result.trim(), provider: providerName };
+        } catch (error) {
+            console.error(`[API] Provider ${providerName} failed:`, error);
+            continue;
+        }
+    }
+
+    throw new Error('All LLM providers failed. Please try again later.');
+}
+
+/**
  * Generate study with automatic fallback through providers
  */
 export async function generateStudyWithFallback(
@@ -319,7 +589,7 @@ export async function generateStudyWithFallback(
     if (availableProviders.length === 0) {
         return {
             study: createErrorStudy(
-                'No LLM providers configured. Please add at least one API key (GROQ_API_KEY, OPENROUTER_API_KEY, or GOOGLE_API_KEY) to environment variables.'
+                'No LLM providers configured. Please add at least one API key (GROQ_API_KEY, OPENROUTER_API_KEY, GOOGLE_API_KEY, or ANTHROPIC_API_KEY) to environment variables.'
             ),
             provider: 'error',
         };
@@ -329,6 +599,7 @@ export async function generateStudyWithFallback(
         groq: callGroq,
         openrouter: callOpenRouter,
         gemini: callGemini,
+        claude: callClaude,
     };
 
     for (const providerName of availableProviders) {

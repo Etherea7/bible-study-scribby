@@ -42,6 +42,15 @@ export function HomePage() {
     endVerse: number;
   } | null>(null);
 
+  // Track when initializing study from wizard navigation (fixes white screen race condition)
+  const [isInitializingFromWizard, setIsInitializingFromWizard] = useState(false);
+  const [pendingLocationState, setPendingLocationState] = useState<{
+    reference: string;
+    passageText: string;
+    study: Study;
+    provider: string;
+  } | null>(null);
+
   const generateMutation = useStudyGeneration();
   const saveStudyMutation = useSaveStudy();
   const { apiKeys } = useApiKeys();
@@ -71,25 +80,49 @@ export function HomePage() {
   }, [editableStudy.isDirty, editableStudy.study, currentStudy]);
 
   // Load study from location state (when coming from wizard)
+  // Phase 1: Capture the state and start initialization
   useEffect(() => {
     if (location.state && typeof location.state === 'object') {
       const state = location.state as any;
       if (state.reference && state.passageText && state.study) {
         console.log(`[Dev] Loading study from wizard: ${state.reference} (provider: ${state.provider})`);
+
+        // Mark as initializing to show loading state
+        setIsInitializingFromWizard(true);
+
+        // Store the pending state
+        setPendingLocationState({
+          reference: state.reference,
+          passageText: state.passageText,
+          study: state.study,
+          provider: state.provider || 'unknown',
+        });
+
+        // Set current study immediately for UI context
         setCurrentStudy({
           reference: state.reference,
           passage_text: state.passageText,
           study: state.study,
           provider: state.provider || 'unknown',
         });
-        // Initialize editable study
+
+        // Initialize editable study (async operation)
         editableStudy.setBlankStudy(state.study);
 
-        // Clear location state to prevent re-triggering on re-render
+        // Clear location state to prevent re-triggering
         window.history.replaceState({}, document.title);
       }
     }
   }, [location.state]);
+
+  // Phase 2: Complete initialization once editableStudy.study is ready
+  useEffect(() => {
+    if (isInitializingFromWizard && pendingLocationState && editableStudy.study) {
+      console.log(`[Dev] Study initialization complete: ${pendingLocationState.reference}`);
+      setIsInitializingFromWizard(false);
+      setPendingLocationState(null);
+    }
+  }, [isInitializingFromWizard, pendingLocationState, editableStudy.study]);
 
   // Load study from URL parameter (when coming from history or saved page)
   useEffect(() => {
@@ -247,7 +280,7 @@ export function HomePage() {
 
   return (
     <div className="min-h-full">
-      {generateMutation.isPending && <LoadingOverlay />}
+      {(generateMutation.isPending || isInitializingFromWizard) && <LoadingOverlay />}
 
       <div className="max-w-[1600px] mx-auto">
         {/* Discernment Disclaimer */}
@@ -497,7 +530,7 @@ export function HomePage() {
         )}
 
         {/* Empty State */}
-        {!currentStudy && !generateMutation.isPending && (
+        {!currentStudy && !generateMutation.isPending && !isInitializingFromWizard && (
           <Card variant="elevated" className="text-center">
             <CardContent className="py-16">
               <div className="mx-auto w-16 h-16 rounded-full bg-[var(--color-observation)]/10 flex items-center justify-center mb-6">

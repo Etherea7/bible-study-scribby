@@ -355,8 +355,16 @@ export function StudyContentPanel({
                   "
                 >
                   {/* Section Header */}
-                  <button
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleSection(section.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleSection(section.id);
+                      }
+                    }}
                     className="
                       w-full
                       flex items-center justify-between
@@ -364,6 +372,7 @@ export function StudyContentPanel({
                       text-left
                       hover:bg-[var(--bg-elevated)]
                       transition-colors
+                      cursor-pointer
                     "
                   >
                     <div className="flex-1">
@@ -404,7 +413,7 @@ export function StudyContentPanel({
                     ) : (
                       <ChevronDown className="h-5 w-5 text-[var(--text-muted)]" />
                     )}
-                  </button>
+                  </div>
 
                   {/* Section Content */}
                   {isExpanded && (

@@ -77,6 +77,19 @@ class LLMProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def complete_prompt(self, prompt: str, model_override: Optional[str] = None) -> str:
+        """Generic text completion for enhancement operations.
+
+        Args:
+            prompt: The full prompt to send to the LLM
+            model_override: Optional model ID to use instead of default
+
+        Returns:
+            The LLM's text response (not JSON parsed)
+        """
+        pass
+
     def _get_system_message(self) -> str:
         """Get the system message for the LLM."""
         return "You are an expert Bible study curriculum designer. Always respond with valid JSON only."

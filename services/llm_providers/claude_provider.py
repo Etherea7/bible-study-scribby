@@ -74,3 +74,35 @@ class ClaudeProvider(LLMProvider):
             return create_error_study(f"Claude API error: {str(e)}")
         except Exception as e:
             return self._handle_error(e)
+
+    async def complete_prompt(self, prompt: str, model_override: str = None) -> str:
+        """Generic text completion using Claude."""
+        if not self.is_available():
+            raise RuntimeError("Anthropic API key not configured")
+
+        effective_model = model_override or self.model
+
+        try:
+            client = self._get_client()
+
+            message = client.messages.create(
+                model=effective_model,
+                max_tokens=2000,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
+
+            response_text = message.content[0].text
+            logger.info(f"Claude completed prompt (model: {effective_model})")
+            return response_text.strip()
+
+        except anthropic.APIError as e:
+            logger.error(f"Claude API error: {e}")
+            raise RuntimeError(f"Claude API error: {str(e)}")
+        except Exception as e:
+            logger.error(f"Claude completion error: {e}")
+            raise RuntimeError(f"Claude error: {str(e)}")

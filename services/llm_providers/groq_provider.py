@@ -76,3 +76,37 @@ class GroqProvider(LLMProvider):
             return create_error_study(f"Failed to parse Groq response: {str(e)}")
         except Exception as e:
             return self._handle_error(e)
+
+    async def complete_prompt(self, prompt: str, model_override: str = None) -> str:
+        """Generic text completion using Groq."""
+        if not self.is_available():
+            raise RuntimeError("Groq API key not configured")
+
+        effective_model = model_override or self.model
+
+        try:
+            client = self._get_client()
+
+            response = client.chat.completions.create(
+                model=effective_model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown formatting."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                temperature=0.6,
+                max_tokens=2000
+            )
+
+            response_text = response.choices[0].message.content
+            logger.info(f"Groq completed prompt (model: {effective_model})")
+            return response_text.strip()
+
+        except Exception as e:
+            logger.error(f"Groq completion error: {e}")
+            raise RuntimeError(f"Groq error: {str(e)}")

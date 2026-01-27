@@ -86,3 +86,54 @@ class OpenRouterProvider(LLMProvider):
             return create_error_study(f"OpenRouter API error: {e.response.status_code}")
         except Exception as e:
             return self._handle_error(e)
+
+    async def complete_prompt(self, prompt: str, model_override: str = None) -> str:
+        """Generic text completion using OpenRouter."""
+        if not self.is_available():
+            raise RuntimeError("OpenRouter API key not configured")
+
+        effective_model = model_override or self.model
+
+        try:
+            headers = {
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": "https://bible-study-scribby.app",
+                "X-Title": "Bible Study Scribby"
+            }
+
+            payload = {
+                "model": effective_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert Bible study curriculum writer. Respond with plain text only, no JSON or markdown formatting."
+                    },
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ],
+                "temperature": 0.6,
+                "max_tokens": 2000
+            }
+
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.post(
+                    self.api_url,
+                    headers=headers,
+                    json=payload
+                )
+                response.raise_for_status()
+                data = response.json()
+
+            response_text = data["choices"][0]["message"]["content"]
+            logger.info(f"OpenRouter completed prompt (model: {effective_model})")
+            return response_text.strip()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"OpenRouter HTTP error: {e}")
+            raise RuntimeError(f"OpenRouter API error: {e.response.status_code}")
+        except Exception as e:
+            logger.error(f"OpenRouter completion error: {e}")
+            raise RuntimeError(f"OpenRouter error: {str(e)}")

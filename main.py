@@ -11,7 +11,7 @@ from services.reading_plan import (
     BIBLE_BOOKS,
 )
 from services.esv_api import fetch_passage
-from services.llm_router import generate_study_with_fallback, check_provider_status
+from services.llm_router import generate_study_with_fallback, check_provider_status, complete_prompt
 from services.bible_data import validate_verse_range, get_chapter_count
 
 # Configure logging
@@ -153,6 +153,47 @@ async def get_providers():
 class FetchPassageRequest(BaseModel):
     reference: str
     include_headings: bool = True  # Set to False for preview (cleaner display)
+
+
+class EnhanceRequest(BaseModel):
+    prompt: str
+    provider: Optional[str] = None  # Override provider (openrouter, anthropic, google)
+    model: Optional[str] = None  # Override model selection
+
+
+@app.post("/api/enhance")
+async def enhance_endpoint(req: EnhanceRequest):
+    """
+    Generic text enhancement using LLM providers.
+
+    Used for AI-powered editing features like rephrase, draft, explain, etc.
+    Routes to the appropriate provider based on user preferences.
+    """
+    try:
+        result, provider = await complete_prompt(
+            prompt=req.prompt,
+            requested_provider=req.provider,
+            requested_model=req.model
+        )
+
+        logger.info(f"Enhancement completed using {provider}")
+
+        return {
+            "result": result,
+            "provider": provider
+        }
+    except RuntimeError as e:
+        logger.error(f"Enhancement error: {e}")
+        return JSONResponse(
+            status_code=400,
+            content={"error": str(e)}
+        )
+    except Exception as e:
+        logger.error(f"Unexpected enhancement error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "An unexpected error occurred"}
+        )
 
 
 @app.post("/api/passage")
