@@ -25,10 +25,12 @@ import {
   Heart,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Plus,
   Trash2,
   Sparkles,
   Loader2,
+  FileText,
 } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '../ui/Card';
 import { EditableTextField } from '../ui/EditableTextField';
@@ -54,6 +56,7 @@ interface StudyContentPanelProps {
   passageContext?: string;
   validationErrors?: { purpose?: string; context?: string };
   hideFlowContent?: boolean; // Hide purpose, context, themes when Flow panel is visible
+  onToggleCollapse?: () => void;
 
   // Field updaters
   onUpdatePurpose: (value: string) => void;
@@ -96,6 +99,7 @@ export function StudyContentPanel({
   passageContext,
   validationErrors = {},
   hideFlowContent = false,
+  onToggleCollapse,
   onUpdatePurpose,
   onUpdateContext,
   onUpdateSummary,
@@ -203,6 +207,32 @@ export function StudyContentPanel({
 
   return (
     <div className="space-y-6">
+      {/* Header with collapse toggle */}
+      {onToggleCollapse && (
+        <div className="flex items-center justify-between px-4 py-3 bg-[var(--bg-elevated)] border border-[var(--border-color)] rounded-xl">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-[var(--color-observation)]" />
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
+              Study Content
+            </span>
+          </div>
+          <button
+            onClick={onToggleCollapse}
+            className="
+              hidden lg:flex
+              p-1.5 rounded-lg
+              hover:bg-[var(--bg-surface)]
+              text-[var(--text-muted)]
+              hover:text-[var(--text-primary)]
+              transition-colors
+            "
+            title="Collapse study content panel"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Purpose - hidden when Flow panel is visible */}
       {!hideFlowContent && (
         <Card variant="elevated">

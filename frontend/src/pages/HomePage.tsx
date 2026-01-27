@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useLocation } from 'react-router-dom';
-import { BookOpen, Sparkles, Info, Save, AlertCircle, RotateCcw, PenLine, X, FileDown } from 'lucide-react';
+import { Sparkles, Info, Save, AlertCircle, RotateCcw, PenLine, X, FileDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PassageSelector } from '../components/forms/PassageSelector';
 import { WorkspaceEditor } from '../components/editor';
 import { LoadingOverlay } from '../components/ui/LoadingSpinner';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
+import { Card, CardContent } from '../components/ui/Card';
 import { useStudyGeneration } from '../hooks/useStudyGeneration';
 import { useEditableStudy } from '../hooks/useEditableStudy';
 import { useBeforeUnload } from '../hooks/useBeforeUnload';
@@ -140,29 +140,7 @@ export function HomePage() {
     }
   }, [searchParams, setSearchParams]);
 
-  const handleGenerateStudy = async (
-    book: string,
-    startChapter: number,
-    startVerse: number,
-    endChapter: number,
-    endVerse: number
-  ) => {
-    const result = await generateMutation.mutateAsync({
-      book,
-      chapter: startChapter,
-      start_verse: startVerse,
-      end_chapter: endChapter,
-      end_verse: endVerse,
-    });
 
-    console.log(`[Dev] Study generated: ${result.reference} (provider: ${result.provider})`);
-    setCurrentStudy({
-      reference: result.reference,
-      passage_text: result.passage_text,
-      study: result.study,
-      provider: result.provider,
-    });
-  };
 
   const handleSave = async () => {
     if (!currentStudy || !editableStudy.study) return;
@@ -288,31 +266,7 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Passage Selector */}
-        <Card className="mb-8">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle as="h2" className="flex items-center gap-2">
-                <BookOpen className="h-5 w-5 text-[var(--color-observation)]" />
-                Select a Passage
-              </CardTitle>
-              <button
-                onClick={() => setShowBlankStudyModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)] rounded-lg transition-colors"
-              >
-                <PenLine className="h-4 w-4" />
-                New Blank Study
-              </button>
-            </div>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <PassageSelector
-              onSubmit={handleGenerateStudy}
-              loading={generateMutation.isPending}
-              hidePreview={!!currentStudy}
-            />
-          </CardContent>
-        </Card>
+
 
         {/* Blank Study Modal */}
         <AnimatePresence>
@@ -329,7 +283,7 @@ export function HomePage() {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="relative bg-[var(--bg-elevated)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6"
+                className="relative bg-[var(--bg-elevated)] rounded-xl shadow-xl max-w-md w-full mx-4 p-6 will-animate"
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-[var(--text-primary)] flex items-center gap-2">
@@ -349,7 +303,7 @@ export function HomePage() {
                 <div className="space-y-4">
                   {/* Passage Selector */}
                   <PassageSelector
-                    onSubmit={() => {}}
+                    onSubmit={() => { }}
                     onChange={(book, startChapter, startVerse, endChapter, endVerse) => {
                       setBlankStudyPassage({ book, startChapter, startVerse, endChapter, endVerse });
                       setBlankStudyError(null);

@@ -48,24 +48,6 @@ function WoodHandleRidges() {
   );
 }
 
-/** Wood knot details for handles */
-function WoodKnots({ position }: { position: 'top' | 'bottom' }) {
-  if (position === 'top') {
-    return (
-      <>
-        <div className="absolute top-1/2 left-[15%] -translate-y-1/2 w-3 h-3 rounded-full bg-[#4A3728] opacity-30" />
-        <div className="absolute top-1/3 right-[20%] w-2 h-2 rounded-full bg-[#4A3728] opacity-25" />
-      </>
-    );
-  }
-  return (
-    <>
-      <div className="absolute top-1/2 right-[25%] -translate-y-1/2 w-3 h-3 rounded-full bg-[#4A3728] opacity-30" />
-      <div className="absolute top-2/3 left-[30%] w-2 h-2 rounded-full bg-[#4A3728] opacity-25" />
-    </>
-  );
-}
-
 /** Parchment surface with all effects (stains, grain, ruled lines) */
 function ParchmentSurface({ children }: { children: React.ReactNode }) {
   return (
@@ -199,16 +181,16 @@ export function ScrollLayout({
   // Get scroll animation values
   const { handleRotation, prefersReducedMotion } = useScrollAnimation({
     scrollRef: scrollAreaRef,
-    maxRotation: 25,
+    maxRotation: 15,
     velocityDecay: 0.95,
-    sensitivity: 0.8,
+    sensitivity: 0.5,
   });
 
   // Spring animation for smooth rotation
   const springRotation = useSpring(handleRotation, {
-    stiffness: 300,
-    damping: 30,
-    mass: 0.5,
+    stiffness: 200,
+    damping: 35,
+    mass: 0.6,
   });
 
   // Animation timing
@@ -248,7 +230,6 @@ export function ScrollLayout({
           }}
         >
           <WoodGrainOverlay />
-          <WoodKnots position="top" />
 
           {/* Navbar content - fades in after unroll */}
           <motion.div
@@ -327,7 +308,6 @@ export function ScrollLayout({
             }}
           >
             <WoodGrainOverlay />
-            <WoodKnots position="bottom" />
             <WoodHandleRidges />
           </div>
         </motion.div>

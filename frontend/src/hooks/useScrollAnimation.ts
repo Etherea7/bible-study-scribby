@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
 interface UseScrollAnimationOptions {
-  /** Maximum rotation angle in degrees (default: 12) */
+  /** Maximum rotation angle in degrees (default: 15) */
   maxRotation?: number;
-  /** Velocity decay factor (0-1, default: 0.92) */
+  /** Velocity decay factor (0-1, default: 0.95) */
   velocityDecay?: number;
-  /** Sensitivity to scroll speed (default: 0.3) */
+  /** Sensitivity to scroll speed (default: 0.5) */
   sensitivity?: number;
   /** The scrollable element ref (default: window) */
   scrollRef?: React.RefObject<HTMLElement | null>;
@@ -26,9 +26,9 @@ export function useScrollAnimation(
   options: UseScrollAnimationOptions = {}
 ): UseScrollAnimationReturn {
   const {
-    maxRotation = 25,
+    maxRotation = 15,
     velocityDecay = 0.95,
-    sensitivity = 0.8,
+    sensitivity = 0.5,
     scrollRef,
   } = options;
 

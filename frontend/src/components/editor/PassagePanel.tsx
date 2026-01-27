@@ -41,7 +41,8 @@ export function PassagePanel({
   const [aiError, setAiError] = useState<string | null>(null);
 
   // Process verse numbers in the text
-  const processedText = text.replace(/(\d+)\s/g, '<sup>$1</sup> ');
+  // Only match 1-3 digit numbers at start of text or after sentence-ending punctuation
+  const processedText = text.replace(/(^|[.!?]\s*)(\d{1,3})(?=\s+[A-Z])/gm, '$1<sup>$2</sup>');
 
   // Handle text selection
   const handleSelection = useCallback(() => {

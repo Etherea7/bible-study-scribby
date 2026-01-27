@@ -10,7 +10,7 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronRight, BookText, List } from 'lucide-react';
+import { ChevronRight, ChevronLeft, BookText, List, FileText } from 'lucide-react';
 import { PassagePanel } from './PassagePanel';
 import { FlowPanel } from './FlowPanel';
 import { StudyContentPanel } from './StudyContentPanel';
@@ -100,6 +100,7 @@ export function WorkspaceEditor({
 }: WorkspaceEditorProps) {
   const [isPassageCollapsed, setIsPassageCollapsed] = useState(false);
   const [isFlowCollapsed, setIsFlowCollapsed] = useState(false);
+  const [isContentCollapsed, setIsContentCollapsed] = useState(false);
   const questionsRef = useRef<HTMLDivElement>(null);
 
   // Scroll to a specific section in the questions panel
@@ -247,45 +248,82 @@ export function WorkspaceEditor({
       )}
 
       {/* Questions Panel - Right (flex-1 to take remaining space) */}
-      <div
-        ref={questionsRef}
-        className={`
-          flex-1
-          min-w-0
-          transition-all duration-300 ease-in-out
-          ${isPassageCollapsed ? 'lg:ml-12' : ''}
-        `}
-      >
-        <StudyContentPanel
-          study={editableStudy}
-          passageContext={passageContext}
-          validationErrors={validationErrors}
-          hideFlowContent={!isFlowCollapsed} // Hide purpose/context/themes when flow panel is visible
-          onUpdatePurpose={onUpdatePurpose}
-          onUpdateContext={onUpdateContext}
-          onUpdateSummary={onUpdateSummary}
-          onUpdatePrayerPrompt={onUpdatePrayerPrompt}
-          onAddTheme={onAddTheme}
-          onUpdateTheme={onUpdateTheme}
-          onRemoveTheme={onRemoveTheme}
-          onAddQuestion={onAddQuestion}
-          onUpdateQuestion={onUpdateQuestion}
-          onRemoveQuestion={onRemoveQuestion}
-          onReorderQuestions={onReorderQuestions}
-          onAddApplicationQuestion={onAddApplicationQuestion}
-          onUpdateApplicationQuestion={onUpdateApplicationQuestion}
-          onRemoveApplicationQuestion={onRemoveApplicationQuestion}
-          onAddCrossReference={onAddCrossReference}
-          onUpdateCrossReference={onUpdateCrossReference}
-          onRemoveCrossReference={onRemoveCrossReference}
-          onUpdateSectionHeading={onUpdateSectionHeading}
-          onUpdateSectionConnection={onUpdateSectionConnection}
-          onUpdateSectionPassage={onUpdateSectionPassage}
-          onAddSection={onAddSection}
-          onRemoveSection={onRemoveSection}
-          onReorderSections={onReorderSections}
-        />
-      </div>
+      <AnimatePresence mode="wait">
+        {!isContentCollapsed && (
+          <motion.div
+            key="content-panel"
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0, transition: springGentle }}
+            exit={{ opacity: 0, x: 10, transition: { duration: 0.15 } }}
+            ref={questionsRef}
+            className={`
+              flex-1
+              min-w-0
+              will-animate
+              ${isPassageCollapsed ? 'lg:ml-12' : ''}
+            `}
+          >
+            <StudyContentPanel
+              study={editableStudy}
+              passageContext={passageContext}
+              validationErrors={validationErrors}
+              hideFlowContent={!isFlowCollapsed} // Hide purpose/context/themes when flow panel is visible
+              onToggleCollapse={() => setIsContentCollapsed(true)}
+              onUpdatePurpose={onUpdatePurpose}
+              onUpdateContext={onUpdateContext}
+              onUpdateSummary={onUpdateSummary}
+              onUpdatePrayerPrompt={onUpdatePrayerPrompt}
+              onAddTheme={onAddTheme}
+              onUpdateTheme={onUpdateTheme}
+              onRemoveTheme={onRemoveTheme}
+              onAddQuestion={onAddQuestion}
+              onUpdateQuestion={onUpdateQuestion}
+              onRemoveQuestion={onRemoveQuestion}
+              onReorderQuestions={onReorderQuestions}
+              onAddApplicationQuestion={onAddApplicationQuestion}
+              onUpdateApplicationQuestion={onUpdateApplicationQuestion}
+              onRemoveApplicationQuestion={onRemoveApplicationQuestion}
+              onAddCrossReference={onAddCrossReference}
+              onUpdateCrossReference={onUpdateCrossReference}
+              onRemoveCrossReference={onRemoveCrossReference}
+              onUpdateSectionHeading={onUpdateSectionHeading}
+              onUpdateSectionConnection={onUpdateSectionConnection}
+              onUpdateSectionPassage={onUpdateSectionPassage}
+              onAddSection={onAddSection}
+              onRemoveSection={onRemoveSection}
+              onReorderSections={onReorderSections}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Collapsed Content Toggle */}
+      {isContentCollapsed && (
+        <motion.button
+          variants={fadeIn}
+          initial="initial"
+          animate="animate"
+          onClick={() => setIsContentCollapsed(false)}
+          className="
+            hidden lg:flex
+            fixed right-4 top-1/2 -translate-y-1/2
+            z-20
+            flex-col items-center justify-center gap-2
+            w-10 h-24
+            bg-[var(--bg-elevated)]
+            border border-[var(--border-color)]
+            rounded-l-lg
+            shadow-lg
+            hover:bg-[var(--bg-surface)]
+            transition-colors
+            will-animate
+          "
+          title="Show study content panel"
+        >
+          <FileText className="h-4 w-4 text-[var(--color-observation)]" />
+          <ChevronLeft className="h-4 w-4 text-[var(--text-secondary)]" />
+        </motion.button>
+      )}
     </div>
   );
 }

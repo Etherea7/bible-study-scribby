@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, useMotionValue, useTransform, useSpring } from 'framer-motion';
 import { ScrollNavbar } from './ScrollNavbar';
 
 interface ScrollContainerProps {
@@ -12,14 +12,38 @@ interface ScrollContainerProps {
  * - They split apart (top goes up, bottom goes down)
  * - Parchment reveals as they separate
  * - Navbar fades in once fully unrolled
+ * - Bottom handle responds to user scrolling (subtle roll effect)
  */
 export function ScrollContainer({ children }: ScrollContainerProps) {
     const [animationComplete, setAnimationComplete] = useState(false);
     const [navbarVisible, setNavbarVisible] = useState(false);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Animation timing
-    const unrollDuration = 1.0;
-    const unrollEase = [0.22, 1, 0.36, 1] as const; // Custom easeOutExpo-like
+    // Track scroll position for bottom handle animation
+    const scrollY = useMotionValue(0);
+    const springConfig = { stiffness: 100, damping: 30, mass: 0.5 };
+    const smoothScrollY = useSpring(scrollY, springConfig);
+
+    // Transform scroll to subtle handle movement (max 8px)
+    const bottomHandleY = useTransform(smoothScrollY, [0, 500], [0, 8]);
+
+    // Animation timing - slightly longer for smoother feel
+    const unrollDuration = 1.2;
+    // Type the easing correctly for Framer Motion
+    const unrollEase: [number, number, number, number] = [0.22, 1, 0.36, 1];
+
+    // Track scroll position
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+
+        const handleScroll = () => {
+            scrollY.set(container.scrollTop);
+        };
+
+        container.addEventListener('scroll', handleScroll, { passive: true });
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [scrollY]);
 
     return (
         <div className="fixed inset-0 bg-[var(--bg-main)] overflow-hidden">
@@ -57,10 +81,6 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                         }}
                     />
 
-                    {/* Wood knot details */}
-                    <div className="absolute top-1/2 left-[15%] -translate-y-1/2 w-3 h-3 rounded-full bg-[#4A3728] opacity-30" />
-                    <div className="absolute top-1/3 right-[20%] w-2 h-2 rounded-full bg-[#4A3728] opacity-25" />
-
                     {/* Navbar content - fades in after unroll */}
                     <motion.div
                         initial={{ opacity: 0 }}
@@ -89,6 +109,7 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                 }}
                 onAnimationComplete={() => setAnimationComplete(true)}
                 className="fixed top-14 sm:top-16 bottom-14 sm:bottom-16 left-0 right-0 overflow-auto"
+                ref={scrollContainerRef}
             >
                 {/* Parchment background with proper dark mode */}
                 <div className="min-h-full parchment-surface relative">
@@ -221,12 +242,13 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                 }}
                 className="fixed bottom-0 left-0 right-0 h-14 sm:h-16 z-50"
             >
-                {/* Wooden bar - full width, rounded top */}
-                <div
-                    className="relative h-full w-full rounded-t-lg overflow-hidden"
+                {/* Wooden bar - full width, rounded top, with scroll-responsive movement */}
+                <motion.div
+                    className="relative h-full w-full rounded-t-lg overflow-hidden will-change-transform"
                     style={{
                         background: 'linear-gradient(0deg, #CD853F 0%, #A0522D 30%, #8B4513 70%, #5D4037 100%)',
                         boxShadow: '0 -4px 12px rgba(0,0,0,0.3), inset 0 -2px 4px rgba(255,255,255,0.2)',
+                        y: bottomHandleY,
                     }}
                 >
                     {/* Horizontal wood grain texture */}
@@ -244,10 +266,8 @@ export function ScrollContainer({ children }: ScrollContainerProps) {
                         }}
                     />
 
-                    {/* Wood knot details */}
-                    <div className="absolute top-1/2 right-[25%] -translate-y-1/2 w-3 h-3 rounded-full bg-[#4A3728] opacity-30" />
-                    <div className="absolute top-2/3 left-[30%] w-2 h-2 rounded-full bg-[#4A3728] opacity-25" />
-                </div>
+
+                </motion.div>
             </motion.div>
         </div>
     );

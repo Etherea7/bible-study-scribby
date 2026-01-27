@@ -88,7 +88,9 @@ frontend/src/
 │   ├── editor/              # Workspace editor components (NEW)
 │   │   ├── WorkspaceEditor.tsx    # Main split-view layout
 │   │   ├── PassagePanel.tsx       # Sticky passage display
-│   │   ├── StudyContentPanel.tsx  # Document-style editor
+│   │   ├── FlowPanel.tsx          # Study flow panel (drag-and-drop cards)
+│   │   ├── StudyContentPanel.tsx  # Document-style editor (collapsible)
+│   │   ├── SortableFlowComponent.tsx # Wrapper for sortable FlowPanel cards
 │   │   └── MagicDraftButton.tsx   # AI draft button
 │   ├── forms/               # PassageSelector, BookSearchCombobox, PassagePreview
 │   ├── layout/              # Header, ScrollLayout (parchment scroll animation)
@@ -142,22 +144,31 @@ frontend/src/
 - Modal overlay with progress indicator
 
 **WorkspaceEditor.tsx** (NEW - Split View Layout)
-- Two-panel split view: Passage (left) | Study Content (right)
+- Three-panel split view: Passage (left) | Flow (middle) | Study Content (right)
 - Responsive: side-by-side on desktop, stacked on mobile
-- Collapsible passage panel
+- All three panels are collapsible with expand buttons when collapsed
 
 **PassagePanel.tsx** (NEW)
 - Displays Bible passage text with verse formatting
+- Verse numbers converted to superscript (only at text start or after sentence-ending punctuation)
 - Sticky positioning (always visible while scrolling)
 - Text selection triggers FloatingToolbar with passage actions
 
 **StudyContentPanel.tsx** (NEW)
 - Document-style layout for all study fields
 - All fields editable: Purpose, Context, Themes, Study Flow, Summary, etc.
+- Collapsible panel with header and collapse button (desktop only)
 - MagicDraftButton for AI-assisted content generation
 - Section management (add/remove/collapse)
 - **Free-Write Notes**: Each section has a "Your Notes & Outline" textarea for personal study
 - **Notes-Guided Generation**: When generating questions, user can use their notes to guide AI
+
+**FlowPanel.tsx** (Study Flow Panel)
+- Contains 5 draggable component cards: Purpose, Context, Themes, Notes, Sections
+- Cards can be reordered via drag-and-drop using @dnd-kit
+- Component order persists to localStorage (`flowPanel.componentOrder`)
+- "Generate Flow" button with option to use user notes
+- Collapsible panel
 
 **FloatingToolbar.tsx** (Enhanced - Dual Mode)
 - **Edit mode**: Rephrase, Shorten (for editable text fields)
@@ -180,8 +191,9 @@ frontend/src/
 
 **useScrollAnimation.ts** - Custom hook for scroll-reactive rotation
 - Tracks scroll velocity using `requestAnimationFrame`
-- Returns `handleRotation` value (±25° max)
-- Configurable: `maxRotation`, `velocityDecay`, `sensitivity`
+- Returns `handleRotation` value (±15° max by default)
+- Configurable: `maxRotation` (default 15), `velocityDecay` (default 0.95), `sensitivity` (default 0.5)
+- Spring animation config: stiffness 200, damping 35, mass 0.6
 - Respects `prefers-reduced-motion` accessibility setting
 - Smooth decay animation when scrolling stops
 
@@ -201,6 +213,11 @@ frontend/src/
 - Uses `useSortable()` hook
 - Drag handle (GripVertical icon) appears on left side on hover
 - Applies CSS transforms during drag
+
+**SortableFlowComponent.tsx** - Wrapper for FlowPanel cards
+- Similar to SortableSectionWrapper but for FlowPanel component cards
+- Drag handle appears on left side on hover
+- Used to reorder Purpose, Context, Themes, Notes, and Sections cards
 
 ### Rich Text Editor
 
@@ -333,9 +350,9 @@ interface GenerateStudyRequest {
 6. Navigation to /editor with study data
 
 ### Workspace Editor
-1. Split view renders (Passage left, Study right)
+1. Split view renders (Passage left, Flow middle, Study Content right)
 2. Passage panel is sticky when scrolling
-3. Collapse/expand passage panel works
+3. All three panels collapsible (Passage, Flow, Study Content)
 4. All study fields are editable
 5. Section add/remove works
 6. Save bar functions correctly
@@ -345,6 +362,11 @@ interface GenerateStudyRequest {
 2. Select text in editable field → toolbar with Rephrase/Shorten
 3. Magic draft buttons appear on empty sections
 4. Question enhancement (sparkles) works
+
+### Verse Number Formatting
+1. Verse numbers at start of verses appear as superscript (e.g., ¹In the beginning...)
+2. Numbers in prose text are NOT converted (e.g., "12 disciples" stays as "12 disciples")
+3. Numbers after periods followed by capital letters become superscript (verse boundaries)
 
 ### Notes-Guided Generation
 1. Each section shows "Your Notes & Outline" textarea
@@ -369,10 +391,26 @@ interface GenerateStudyRequest {
 ### Scroll Animation
 1. Page loads with scroll unrolling animation (handles separate from center)
 2. Bottom handle has visible horizontal ridges
-3. Scroll down rapidly - bottom handle tilts forward visibly
+3. Scroll down rapidly - bottom handle tilts forward visibly (max 15°)
 4. Scroll up - handle tilts backward
-5. Stop scrolling - handle smoothly returns to neutral
-6. Dark mode maintains proper colors
+5. Stop scrolling - handle smoothly returns to neutral (spring animation)
+6. Animation is smooth and not jarring (tuned sensitivity and damping)
+7. Dark mode maintains proper colors
+
+### Panel Collapse
+1. Passage panel (left) - click collapse button → panel hides, expand button appears
+2. Flow panel (middle) - click collapse button → panel hides, expand button appears
+3. Study Content panel (right) - click collapse button → panel hides, expand button appears
+4. Click expand button → panel reappears with animation
+5. All panels work independently (can collapse any combination)
+
+### FlowPanel Drag-and-Drop
+1. In Flow panel, hover over a card (Purpose, Context, Themes, Notes, Sections)
+2. Drag handle (grip icon) appears on left side of card
+3. Drag card up/down - other cards shift visually during drag
+4. Drop card - new order persists
+5. Refresh page - card order is preserved (stored in localStorage)
+6. Clear localStorage `flowPanel.componentOrder` - resets to default order
 
 ### Section Drag-and-Drop
 1. Load study with multiple sections
@@ -405,9 +443,11 @@ interface GenerateStudyRequest {
 - `frontend/src/App.tsx` - Updated routing
 
 ### Phase 3 (Editor)
-- `frontend/src/components/editor/WorkspaceEditor.tsx` - Split view
-- `frontend/src/components/editor/PassagePanel.tsx` - Passage display
-- `frontend/src/components/editor/StudyContentPanel.tsx` - Study editor with notes
+- `frontend/src/components/editor/WorkspaceEditor.tsx` - Split view with 3 collapsible panels
+- `frontend/src/components/editor/PassagePanel.tsx` - Passage display with verse formatting
+- `frontend/src/components/editor/FlowPanel.tsx` - Study flow panel with drag-and-drop cards
+- `frontend/src/components/editor/StudyContentPanel.tsx` - Study editor with notes (collapsible)
+- `frontend/src/components/editor/SortableFlowComponent.tsx` - Wrapper for sortable FlowPanel cards
 - `frontend/src/components/editor/MagicDraftButton.tsx` - AI draft button
 - `frontend/src/components/ui/FloatingToolbar.tsx` - Dual-mode toolbar
 - `frontend/src/api/enhanceClient.ts` - AI enhancement functions including notes validation

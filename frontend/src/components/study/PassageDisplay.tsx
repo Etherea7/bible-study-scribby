@@ -8,8 +8,9 @@ interface PassageDisplayProps {
 
 export function PassageDisplay({ reference, text }: PassageDisplayProps) {
   // Process verse numbers in the text
-  // ESV API returns verse numbers as plain numbers followed by a space
-  const processedText = text.replace(/(\d+)\s/g, '<sup>$1</sup> ');
+  // ESV API returns verse numbers at the start of verses (after newlines or at text start)
+  // Only match 1-3 digit numbers at start of text or after sentence-ending punctuation
+  const processedText = text.replace(/(^|[.!?]\s*)(\d{1,3})(?=\s+[A-Z])/gm, '$1<sup>$2</sup>');
 
   return (
     <Card className="sticky top-20 lg:top-24" variant="elevated">

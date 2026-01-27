@@ -69,20 +69,30 @@
   --color-interpretation-light: #EDE9FE;
   --color-interpretation-dark: #5B21B6;
   /* More vibrant accent */
-  --color-accent: #D97706; /* Amber-600 */
-  --color-accent-hover: #B45309; /* Amber-700 */
-  --color-accent-light: #FCD34D; /* Amber-300 */
+  --color-accent: #D97706;
+  /* Amber-600 */
+  --color-accent-hover: #B45309;
+  /* Amber-700 */
+  --color-accent-light: #FCD34D;
+  /* Amber-300 */
 }
 
 .dark {
   /* Deeper, richer dark mode */
-  --bg-main: #0F172A; /* Slate-900 */
-  --bg-surface: #1E293B; /* Slate-800 */
-  --bg-elevated: #334155; /* Slate-700 */
-  --text-primary: #F8FAFC; /* Slate-50 */
-  --text-secondary: #CBD5E1; /* Slate-300 */
-  --text-muted: #94A3B8; /* Slate-400 */
-  --border-color: #334155; /* Slate-700 */
+  --bg-main: #0F172A;
+  /* Slate-900 */
+  --bg-surface: #1E293B;
+  /* Slate-800 */
+  --bg-elevated: #334155;
+  /* Slate-700 */
+  --text-primary: #F8FAFC;
+  /* Slate-50 */
+  --text-secondary: #CBD5E1;
+  /* Slate-300 */
+  --text-muted: #94A3B8;
+  /* Slate-400 */
+  --border-color: #334155;
+  /* Slate-700 */
 
   /* Dark mode warm palette */
   --color-sand: #334155;
@@ -95,14 +105,18 @@
   --parchment-stain-dark: #3D4A5C;
 
   /* Accent colors for dark mode */
-  --color-observation: #22D3EE; /* Cyan-400 */
+  --color-observation: #22D3EE;
+  /* Cyan-400 */
   --color-observation-light: rgba(34, 211, 238, 0.1);
   --color-observation-dark: #0891B2;
-  --color-interpretation: #A78BFA; /* Violet-400 */
+  --color-interpretation: #A78BFA;
+  /* Violet-400 */
   --color-interpretation-light: rgba(167, 139, 250, 0.1);
   --color-interpretation-dark: #7C3AED;
-  --color-accent: #F59E0B; /* Amber-500 */
-  --color-accent-hover: #D97706; /* Amber-600 */
+  --color-accent: #F59E0B;
+  /* Amber-500 */
+  --color-accent-hover: #D97706;
+  /* Amber-600 */
   --color-accent-light: rgba(245, 158, 11, 0.2);
 
   color-scheme: dark;
@@ -515,12 +529,10 @@ body {
    ============================================================================ */
 
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--bg-surface) 25%,
-    var(--bg-elevated) 50%,
-    var(--bg-surface) 75%
-  );
+  background: linear-gradient(90deg,
+      var(--bg-surface) 25%,
+      var(--bg-elevated) 50%,
+      var(--bg-surface) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 0.5rem;
@@ -584,6 +596,7 @@ body {
 
 /* Respect user's motion preferences for accessibility */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
@@ -650,11 +663,13 @@ body {
     line-height: 1.6;
   }
 }
+
 /* Text Shimmer Animation - Fix for separate gradient text */
 @keyframes text-shimmer {
   0% {
     background-position: 0% 50%;
   }
+
   100% {
     background-position: 100% 50%;
   }
@@ -696,8 +711,8 @@ body {
   z-index: 2;
   /* Edge darkening */
   background: linear-gradient(180deg,
-    rgba(139, 69, 19, 0.04) 0%, transparent 2%,
-    transparent 98%, rgba(139, 69, 19, 0.04) 100%);
+      rgba(139, 69, 19, 0.04) 0%, transparent 2%,
+      transparent 98%, rgba(139, 69, 19, 0.04) 100%);
 }
 
 .dark .parchment-bg {
@@ -710,22 +725,76 @@ body {
 
 .dark .parchment-bg::after {
   background: linear-gradient(180deg,
-    rgba(0, 0, 0, 0.08) 0%, transparent 2%,
-    transparent 98%, rgba(0, 0, 0, 0.08) 100%);
+      rgba(0, 0, 0, 0.08) 0%, transparent 2%,
+      transparent 98%, rgba(0, 0, 0, 0.08) 100%);
 }
 
 /* ============================================================================
    PARCHMENT SURFACE - Used by ScrollContainer
-   Explicit classes for proper dark mode support (Tailwind can't parse CSS vars)
+   Enhanced scroll-like texture with aged paper effect
    ============================================================================ */
 
 .parchment-surface {
-  background-color: #F5F0E6; /* Light mode - cream parchment */
+  /* Base cream parchment color */
+  background-color: #F5F0E6;
+
+  /* Layered background for scroll texture effect */
+  background-image:
+    /* Subtle paper grain noise - creates authentic texture */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E"),
+    /* Warm aged spots - organic color variation */
+    radial-gradient(ellipse 60% 50% at 15% 20%, rgba(194, 164, 120, 0.12), transparent 50%),
+    radial-gradient(ellipse 50% 60% at 75% 35%, rgba(186, 154, 110, 0.10), transparent 45%),
+    radial-gradient(ellipse 45% 40% at 40% 80%, rgba(178, 144, 100, 0.08), transparent 40%),
+    radial-gradient(ellipse 55% 35% at 85% 75%, rgba(200, 170, 130, 0.10), transparent 50%),
+    /* Subtle horizontal lines like aged paper fibers */
+    repeating-linear-gradient(0deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(139, 69, 19, 0.015) 3px,
+      rgba(139, 69, 19, 0.015) 4px),
+    /* Base gradient for depth */
+    linear-gradient(180deg,
+      rgba(245, 240, 230, 0) 0%,
+      rgba(232, 224, 208, 0.3) 50%,
+      rgba(245, 240, 230, 0) 100%);
+
+  background-size:
+    200px 200px,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 8px,
+    100% 100%;
 }
 
 .dark .parchment-surface {
-  background-color: #1E293B; /* Dark mode - slate-800 */
+  /* Dark mode - deep slate with subtle warmth */
+  background-color: #1E293B;
+
+  background-image:
+    /* Subtle noise for dark mode */
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n' x='0' y='0'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"),
+    /* Dark mode color variations - cooler tones */
+    radial-gradient(ellipse 60% 50% at 20% 25%, rgba(71, 85, 105, 0.15), transparent 50%),
+    radial-gradient(ellipse 50% 60% at 70% 40%, rgba(51, 65, 85, 0.12), transparent 45%),
+    radial-gradient(ellipse 45% 40% at 35% 75%, rgba(61, 74, 92, 0.10), transparent 40%),
+    /* Subtle horizontal texture */
+    repeating-linear-gradient(0deg,
+      transparent 0px,
+      transparent 3px,
+      rgba(255, 255, 255, 0.01) 3px,
+      rgba(255, 255, 255, 0.01) 4px);
+
+  background-size:
+    200px 200px,
+    100% 100%,
+    100% 100%,
+    100% 100%,
+    100% 8px;
 }
+
 
 /* ============================================================================
    TIPTAP RICH TEXT EDITOR STYLES
