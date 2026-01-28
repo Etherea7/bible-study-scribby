@@ -146,7 +146,7 @@ interface UseEditableStudyResult {
   // Actions
   saveToHistory: (reference: string, passageText: string, provider: string) => Promise<void>;
   discardChanges: () => void;
-  setBlankStudy: (blankStudy: EditableStudyFull) => void;
+  setBlankStudy: (blankStudy: EditableStudyFull | Study) => void;
   markAsSaved: () => void;
 }
 
@@ -519,8 +519,9 @@ export function useEditableStudy(
   }, []);
 
   // Set a blank study directly (for manual study creation)
-  const setBlankStudy = useCallback((blankStudy: EditableStudyFull) => {
-    setStudy(blankStudy);
+  const setBlankStudy = useCallback((blankStudy: EditableStudyFull | Study) => {
+    const editable = isEditableStudy(blankStudy) ? blankStudy : toEditableStudy(blankStudy);
+    setStudy(editable);
     setOriginalStudy(null); // No original to revert to
   }, []);
 

@@ -209,29 +209,27 @@ export interface ModelConfig {
 // Available models per provider
 export const PROVIDER_MODELS: Record<Exclude<LLMProvider, 'auto'>, ModelConfig[]> = {
   openrouter: [
-    { id: 'meta-llama/llama-3.2-3b-instruct:free', name: 'Llama 3.2 3B (Free)', description: 'Fast, free model', isFree: true },
-    { id: 'meta-llama/llama-3.3-70b-instruct:free', name: 'Llama 3.3 70B (Free)', description: 'Larger free model', isFree: true },
-    { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash', description: 'Fast Google model via OpenRouter' },
-    { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet', description: 'Best for reasoning' },
+    { id: 'meta-llama/llama-4-scout:free', name: 'Llama 4 Scout (Free)', description: 'Fast, free model', isFree: true },
+    { id: 'meta-llama/llama-4-maverick:free', name: 'Llama 4 Maverick (Free)', description: 'Larger free model', isFree: true },
+    { id: 'mistralai/mistral-small-3.1-24b-instruct:free', name: 'Mistral Small 3.1 (Free)', description: 'Fast Mistral model', isFree: true },
+    { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4', description: 'Best for reasoning' },
     { id: 'openai/gpt-4o', name: 'GPT-4o', description: 'OpenAI flagship model' },
   ],
   anthropic: [
-    { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4', description: 'Latest Claude model' },
-    { id: 'claude-3-5-sonnet-20241022', name: 'Claude 3.5 Sonnet', description: 'Great for reasoning' },
-    { id: 'claude-3-5-haiku-20241022', name: 'Claude 3.5 Haiku', description: 'Fast and efficient' },
+    { id: 'claude-sonnet-4-5-20250929', name: 'Claude 4.5 Sonnet', description: 'Great for reasoning' },
+    { id: 'claude-haiku-4-5-20251001', name: 'Claude 4.5 Haiku', description: 'Fast and efficient' },
   ],
   google: [
-    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Fast and capable' },
-    { id: 'gemini-1.5-pro', name: 'Gemini 1.5 Pro', description: 'Most capable' },
-    { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash', description: 'Balanced speed/quality' },
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', description: 'Fast and capable' },
+    { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', description: 'Balanced speed/quality' },
   ],
 };
 
 // Default models per provider
 export const DEFAULT_MODELS: Record<Exclude<LLMProvider, 'auto'>, string> = {
-  openrouter: 'meta-llama/llama-3.2-3b-instruct:free',
-  anthropic: 'claude-sonnet-4-20250514',
-  google: 'gemini-2.0-flash',
+  openrouter: 'meta-llama/llama-4-scout:free',
+  anthropic: 'claude-sonnet-4-5-20250929',
+  google: 'gemini-2.5-flash',
 };
 
 // Provider metadata for UI display

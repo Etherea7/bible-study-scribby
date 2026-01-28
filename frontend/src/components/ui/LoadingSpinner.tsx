@@ -28,7 +28,7 @@ interface LoadingOverlayProps {
 
 export function LoadingOverlay({ message = 'Generating study guide...' }: LoadingOverlayProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--bg-main)]/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--bg-main)]/80 backdrop-blur-sm">
       <div className="card-premium p-8 flex flex-col items-center gap-5 max-w-sm mx-4">
         <div className="relative w-16 h-16">
           <div className="absolute inset-0 animate-pulse-subtle">

@@ -25,7 +25,7 @@ export const PROVIDERS = {
     claude: {
         name: 'claude',
         url: 'https://api.anthropic.com/v1/messages',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5-20251001',
         envKey: 'ANTHROPIC_API_KEY',
     },
 } as const;

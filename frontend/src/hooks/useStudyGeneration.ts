@@ -37,12 +37,16 @@ export function useStudyGeneration() {
         params.end_verse
       );
 
-      // Check cache first
+      // Check for user API keys and settings
+      const apiKeys = await getApiKeys();
+      const { provider, model } = await getEffectiveProviderAndModel();
+
+      // Check cache - only use if provider matches current preference
       const cachedStudy = await getCachedStudy(reference);
       const cachedPassage = await getCachedPassage(reference);
 
-      if (cachedStudy && cachedPassage) {
-        console.log('[Dev] Loading from cache:', reference);
+      if (cachedStudy && cachedPassage && (!provider || cachedStudy.provider === provider)) {
+        console.log('[Dev] Loading from cache:', reference, '(provider match:', cachedStudy.provider, ')');
         return {
           reference,
           passage_text: cachedPassage.text,
@@ -51,10 +55,6 @@ export function useStudyGeneration() {
           fromCache: true,
         };
       }
-
-      // Check for user API keys and settings
-      const apiKeys = await getApiKeys();
-      const { provider, model } = await getEffectiveProviderAndModel();
 
       // Check if we can do client-side generation
       const canUseClientSide = Boolean(

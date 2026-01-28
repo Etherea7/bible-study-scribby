@@ -109,7 +109,7 @@ async def generate_study(reference: str, passage_text: str) -> dict:
         client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-haiku-4-5-20251001",
             max_tokens=2500,
             messages=[
                 {
